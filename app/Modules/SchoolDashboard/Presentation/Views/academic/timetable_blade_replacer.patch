@@ -1,0 +1,296 @@
+--- app/Modules/SchoolDashboard/Presentation/Views/academic/timetable.blade.php
++++ app/Modules/SchoolDashboard/Presentation/Views/academic/timetable.blade.php
+@@ -103,240 +103,53 @@
+ 
+                     <!-- Timetable Body -->
+                     <div class="divide-y divide-slate-100">
+-                        
+-                        <!-- 08:00 Row -->
+-                        <div class="grid grid-cols-6 min-h-[90px]">
+-                            <!-- Time -->
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-start items-center pt-4">
+-                                <span class="text-[12px] font-bold text-slate-500">08:00</span>
+-                            </div>
+-                            <!-- Mon -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-blue-50 border-l-4 border-blue-600 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-blue-900 leading-tight">Mathématiques</div>
+-                                    <div class="text-[10px] font-medium text-blue-700 mt-1">M. Ndiaye | Salle 204</div>
+-                                </div>
+-                            </div>
+-                            <!-- Tue -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50"></div>
+-                            <!-- Wed -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-green-50 border-l-4 border-green-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-green-900 leading-tight">Biologie</div>
+-                                    <div class="text-[10px] font-medium text-green-700 mt-1">Dr. Diallo | Labo A</div>
+-                                </div>
+-                            </div>
+-                            <!-- Thu -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50"></div>
+-                            <!-- Fri -->
+-                            <div class="col-span-1 p-2">
+-                                <div class="h-full bg-purple-50 border-l-4 border-purple-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-purple-900 leading-tight">Anglais</div>
+-                                    <div class="text-[10px] font-medium text-purple-700 mt-1">Mme. Touré | Salle 105</div>
+-                                </div>
+-                            </div>
+-                        </div>
+-
+-                        <!-- 09:00 Row -->
+-                        <div class="grid grid-cols-6 min-h-[90px]">
+-                            <!-- Time -->
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-start items-center pt-4">
+-                                <span class="text-[12px] font-bold text-slate-500">09:00</span>
+-                            </div>
+-                            <!-- Mon -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-blue-50 border-l-4 border-blue-600 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-blue-900 leading-tight">Mathématiques</div>
+-                                    <div class="text-[10px] font-medium text-blue-700 mt-1">M. Ndiaye | Salle 204</div>
+-                                </div>
+-                            </div>
+-                            <!-- Tue -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-orange-50 border-l-4 border-orange-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-orange-900 leading-tight">Physique</div>
+-                                    <div class="text-[10px] font-medium text-orange-700 mt-1">Dr. Koffi | Salle 301</div>
+-                                </div>
+-                            </div>
+-                            <!-- Wed -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-green-50 border-l-4 border-green-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-green-900 leading-tight">Biologie</div>
+-                                    <div class="text-[10px] font-medium text-green-700 mt-1">Dr. Diallo | Labo A</div>
+-                                </div>
+-                            </div>
+-                            <!-- Thu -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-blue-50 border-l-4 border-blue-600 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-blue-900 leading-tight">Mathématiques</div>
+-                                    <div class="text-[10px] font-medium text-blue-700 mt-1">M. Ndiaye | Salle 204</div>
+-                                </div>
+-                            </div>
+-                            <!-- Fri -->
+-                            <div class="col-span-1 p-2">
+-                                <div class="h-full bg-purple-50 border-l-4 border-purple-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-purple-900 leading-tight">Anglais</div>
+-                                    <div class="text-[10px] font-medium text-purple-700 mt-1">Mme. Touré | Salle 105</div>
+-                                </div>
+-                            </div>
+-                        </div>
+-
+-                        <!-- 10:00 PAUSE RÉCRÉATION -->
+-                        <div class="grid grid-cols-6 min-h-[50px] bg-[#F4F7FB]/70">
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-center items-center">
+-                                <span class="text-[12px] font-bold text-slate-500">10:00</span>
+-                            </div>
+-                            <div class="col-span-5 p-3 flex items-center justify-center gap-2">
+-                                <i class="ph-fill ph-coffee text-[#1E40AF] text-[16px]"></i>
+-                                <span class="text-[12px] font-bold text-[#1E40AF] uppercase tracking-widest">Pause Récréation</span>
+-                            </div>
+-                        </div>
+-
+-                        <!-- 10:30 Row -->
+-                        <div class="grid grid-cols-6 min-h-[90px]">
+-                            <!-- Time -->
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-start items-center pt-4">
+-                                <span class="text-[12px] font-bold text-slate-500">10:30</span>
+-                            </div>
+-                            <!-- Mon -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-rose-50 border-l-4 border-rose-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-rose-900 leading-tight">Philosophie</div>
+-                                    <div class="text-[10px] font-medium text-rose-700 mt-1">M. Ba | Salle 12</div>
+-                                </div>
+-                            </div>
+-                            <!-- Tue -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-orange-50 border-l-4 border-orange-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-orange-900 leading-tight">Physique</div>
+-                                    <div class="text-[10px] font-medium text-orange-700 mt-1">Dr. Koffi | Salle 301</div>
+-                                </div>
+-                            </div>
+-                            <!-- Wed -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-amber-50 border-l-4 border-amber-400 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-amber-900 leading-tight">Histoire-Géo</div>
+-                                    <div class="text-[10px] font-medium text-amber-700 mt-1">Mme. Sow | Salle 202</div>
+-                                </div>
+-                            </div>
+-                            <!-- Thu -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50">
+-                                <div class="h-full bg-blue-50 border-l-4 border-blue-600 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-blue-900 leading-tight">Mathématiques</div>
+-                                    <div class="text-[10px] font-medium text-blue-700 mt-1">M. Ndiaye | Salle 204</div>
+-                                </div>
+-                            </div>
+-                            <!-- Fri -->
+-                            <div class="col-span-1 p-2">
+-                                <div class="h-full bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-emerald-900 leading-tight">Informatique</div>
+-                                    <div class="text-[10px] font-medium text-emerald-700 mt-1">M. Kamara | Salle Info</div>
+-                                </div>
+-                            </div>
+-                        </div>
+-
+-                        <!-- 11:30 Row -->
+-                        <div class="grid grid-cols-6 min-h-[90px]">
+-                            <!-- Time -->
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-start items-center pt-4">
+-                                <span class="text-[12px] font-bold text-slate-500">11:30</span>
+-                            </div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50"></div>
+-                            <div class="col-span-1 p-2">
+-                                <div class="h-full bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-emerald-900 leading-tight">Informatique</div>
+-                                    <div class="text-[10px] font-medium text-emerald-700 mt-1">M. Kamara | Salle Info</div>
+-                                </div>
+-                            </div>
+-                        </div>
+-
+-                        <!-- 12:30 PAUSE DÉJEUNER -->
+-                        <div class="grid grid-cols-6 min-h-[50px] bg-[#F4F7FB]/70">
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-center items-center">
+-                                <span class="text-[12px] font-bold text-slate-500">12:30</span>
+-                            </div>
+-                            <div class="col-span-5 p-3 flex items-center justify-center gap-2">
+-                                <i class="ph-fill ph-fork-knife text-[#1E40AF] text-[16px]"></i>
+-                                <span class="text-[12px] font-bold text-[#1E40AF] uppercase tracking-widest">Pause Déjeuner</span>
+-                            </div>
+-                        </div>
+-
+-                        <!-- 14:00 Row -->
+-                        <div class="grid grid-cols-6 min-h-[90px]">
+-                            <!-- Time -->
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-start items-center pt-4">
+-                                <span class="text-[12px] font-bold text-slate-500">14:00</span>
+-                            </div>
+-                            <!-- Mon -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30">
+-                                <div class="h-full bg-indigo-50 border-l-4 border-indigo-500 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-indigo-900 leading-tight">Espagnol</div>
+-                                    <div class="text-[10px] font-medium text-indigo-700 mt-1">Mme. Garcia | Salle 103</div>
+-                                </div>
+-                            </div>
+-                            <!-- Tue -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <!-- Wed -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30">
+-                                <div class="h-full bg-slate-100 border-l-4 border-slate-600 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-slate-800 leading-tight">EPS</div>
+-                                    <div class="text-[10px] font-medium text-slate-600 mt-1">M. Faye | Terrain</div>
+-                                </div>
+-                            </div>
+-                            <!-- Thu -->
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30">
+-                                <div class="h-full bg-slate-100 border-l-4 border-slate-600 rounded-r-lg p-2.5 flex flex-col justify-center">
+-                                    <div class="text-[11.5px] font-bold text-slate-800 leading-tight">EPS</div>
+-                                    <div class="text-[10px] font-medium text-slate-600 mt-1">M. Faye | Terrain</div>
+-                                </div>
+-                            </div>
+-                            <!-- Fri -->
+-                            <div class="col-span-1 p-2 bg-[#F4F7FB]/30"></div>
+-                        </div>
+-
+-                        <!-- 15:00 Row -->
+-                        <div class="grid grid-cols-6 min-h-[90px]">
+-                            <!-- Time -->
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-start items-center pt-4">
+-                                <span class="text-[12px] font-bold text-slate-500">15:00</span>
+-                            </div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 bg-[#F4F7FB]/30"></div>
+-                        </div>
+-
+-                        <!-- 16:00 Row -->
+-                        <div class="grid grid-cols-6 min-h-[90px]">
+-                            <!-- Time -->
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-start items-center pt-4">
+-                                <span class="text-[12px] font-bold text-slate-500">16:00</span>
+-                            </div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 bg-[#F4F7FB]/30"></div>
+-                        </div>
+-
+-                        <!-- 17:00 Row -->
+-                        <div class="grid grid-cols-6 min-h-[90px]">
+-                            <!-- Time -->
+-                            <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-start items-center pt-4">
+-                                <span class="text-[12px] font-bold text-slate-500">17:00</span>
+-                            </div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 border-r border-slate-100/50 bg-[#F4F7FB]/30"></div>
+-                            <div class="col-span-1 p-2 bg-[#F4F7FB]/30"></div>
+-                        </div>
+-
++                        @php
++                            $days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
++                            $times = [
++                                ['time' => '08:00', 'type' => 'cours'],
++                                ['time' => '09:00', 'type' => 'cours'],
++                                ['time' => '10:00', 'type' => 'pause', 'label' => 'Pause Récréation', 'icon' => 'ph-coffee'],
++                                ['time' => '10:30', 'type' => 'cours'],
++                                ['time' => '11:30', 'type' => 'cours'],
++                                ['time' => '12:30', 'type' => 'pause', 'label' => 'Pause Déjeuner', 'icon' => 'ph-fork-knife'],
++                                ['time' => '14:00', 'type' => 'cours'],
++                                ['time' => '15:00', 'type' => 'cours'],
++                                ['time' => '16:00', 'type' => 'cours'],
++                                ['time' => '17:00', 'type' => 'cours'],
++                            ];
++                            
++                            $blocksLookup = [];
++                            foreach($timetables as $t) {
++                                $formattedTime = substr($t->start_time, 0, 5); // "08:00:00" -> "08:00"
++                                $blocksLookup[$t->day_of_week][$formattedTime] = $t;
++                            }
++                        @endphp
++
++                        @foreach($times as $timeBlock)
++                            @if($timeBlock['type'] == 'pause')
++                                <div class="grid grid-cols-6 min-h-[50px] bg-[#F4F7FB]/70">
++                                    <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-center items-center">
++                                        <span class="text-[12px] font-bold text-slate-500">{{ $timeBlock['time'] }}</span>
++                                    </div>
++                                    <div class="col-span-5 p-3 flex items-center justify-center gap-2">
++                                        <i class="ph-fill {{ $timeBlock['icon'] }} text-[#1E40AF] text-[16px]"></i>
++                                        <span class="text-[12px] font-bold text-[#1E40AF] uppercase tracking-widest">{{ $timeBlock['label'] }}</span>
++                                    </div>
++                                </div>
++                            @else
++                                <div class="grid grid-cols-6 min-h-[90px]">
++                                    <div class="col-span-1 p-3 border-r border-slate-100/50 flex flex-col justify-start items-center pt-4">
++                                        <span class="text-[12px] font-bold text-slate-500">{{ $timeBlock['time'] }}</span>
++                                    </div>
++                                    @foreach($days as $day)
++                                        <div class="col-span-1 p-2 border-r border-slate-100/50 {{ $timeBlock['time'] >= '14:00' ? 'bg-[#F4F7FB]/30' : '' }}">
++                                            @if(isset($blocksLookup[$day][$timeBlock['time']]))
++                                                @php
++                                                    $block = $blocksLookup[$day][$timeBlock['time']];
++                                                    $color = $block->subject->color ?? 'blue';
++                                                @endphp
++                                                <div class="h-full bg-{{ $color }}-50 border-l-4 border-{{ $color }}-600 rounded-r-lg p-2.5 flex flex-col justify-center shadow-sm">
++                                                    <div class="text-[11.5px] font-bold text-{{ $color }}-900 leading-tight">{{ $block->subject->name }}</div>
++                                                    <div class="text-[10px] font-medium text-{{ $color }}-700 mt-1">{{ $block->teacher ? $block->teacher->first_name . ' ' . $block->teacher->last_name : 'Aucun prof.' }}</div>
++                                                </div>
++                                            @endif
++                                        </div>
++                                    @endforeach
++                                </div>
++                            @endif
++                        @endforeach
+                     </div>
+                 </div>
+             </div>
