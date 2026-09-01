@@ -1,0 +1,22 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('transport_boarding_scans', function (Blueprint $table) {
+            $table->foreignId('scanned_by_driver_id')->nullable()->after('scanned_by_device_id')->constrained('transport_drivers')->nullOnDelete();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('transport_boarding_scans', function (Blueprint $table) {
+            $table->dropConstrainedForeignId('scanned_by_driver_id');
+        });
+    }
+};
