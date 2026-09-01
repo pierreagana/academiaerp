@@ -30,6 +30,9 @@ class DashboardController extends Controller
 
         $activeTicketsCount = \App\Modules\SuperAdmin\Domain\Models\SupportTicket::whereIn('status', ['open', 'in_progress'])->count();
 
-        return view('SuperAdmin::dashboard', compact('stats', 'recentSchools', 'planStats', 'activeTicketsCount'));
+        $totalStudents = \App\Modules\Academic\Domain\Models\Student::count();
+        $totalParents = \App\Modules\Academic\Domain\Models\ParentAccount::count();
+
+        return view('SuperAdmin::dashboard', compact('stats', 'recentSchools', 'planStats', 'activeTicketsCount', 'totalStudents', 'totalParents'));
     }
 }

@@ -4,10 +4,11 @@ namespace App\Modules\Transport\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Bus extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToSchool;
 
     protected $table = 'transport_buses';
 
@@ -28,12 +29,16 @@ class Bus extends Model
         'current_latitude',
         'current_longitude',
         'position_updated_at',
+        'active_route_id',
+        'active_shift',
+        'trip_started_at',
     ];
 
     protected $casts = [
         'current_latitude' => 'decimal:7',
         'current_longitude' => 'decimal:7',
         'position_updated_at' => 'datetime',
+        'trip_started_at' => 'datetime',
     ];
 
     public function driver()
@@ -44,5 +49,10 @@ class Bus extends Model
     public function routes()
     {
         return $this->hasMany(Route::class);
+    }
+
+    public function activeRoute()
+    {
+        return $this->belongsTo(Route::class, 'active_route_id');
     }
 }

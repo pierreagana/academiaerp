@@ -67,7 +67,7 @@
                     <i class="ph ph-chart-line-up text-[24px]"></i>
                 </div>
                 <span class="flex items-center gap-1 text-xs font-bold text-[#6F1DDF] bg-[#F1E5FF] px-3 py-1.5 rounded-full">
-                    IA Analyse <i class="ph ph-sparkle"></i>
+                    Statistique <i class="ph ph-chart-line-up"></i>
                 </span>
             </div>
             <div>

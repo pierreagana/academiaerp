@@ -31,13 +31,13 @@
                 <h3 class="text-[20px] font-extrabold text-[#1E1B4B]">Aperçu Stratégique IA</h3>
             </div>
             <p class="text-[14px] text-slate-600 font-medium leading-relaxed max-w-3xl mb-5">
-                L'intelligence artificielle optimise actuellement les performances académiques et opérationnelles du réseau.
+                Vue d'ensemble en temps réel des établissements et de l'adoption des modules du réseau.
                 <span class="text-[#7C3AED] font-bold">{{ $kpis['active_schools'] }} établissements actifs</span>
                 sur {{ $kpis['total_schools'] }} enregistrés — {{ $kpis['total_students'] }} élèves au total en base SQL.
             </p>
             <div class="flex flex-wrap items-center gap-3">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E9D5FF] bg-white text-[#7C3AED] text-[12px] font-bold shadow-sm">
-                    <i class="ph ph-cpu font-bold"></i> 3 Modèles LLM Actifs
+                    <i class="ph ph-cpu font-bold"></i> {{ $aiModels->count() }} Modèle(s) LLM Actif(s)
                 </span>
                 @if($kpis['error_logs'] == 0)
                 <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#A7F3D0] bg-white text-[#059669] text-[12px] font-bold shadow-sm">
@@ -157,7 +157,7 @@
             {{-- Engagement Metrics --}}
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-[18px] font-extrabold text-[#1E1B4B]">Indicateurs d'Engagement IA & Tuteur Virtuel</h3>
+                    <h3 class="text-[18px] font-extrabold text-[#1E1B4B]">Adoption des Modules (60 derniers jours)</h3>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     @foreach($engagementData as $item)
@@ -175,7 +175,6 @@
                             <p class="text-[12px] font-bold text-slate-500 mb-3">{{ $item['label'] }}</p>
                             <div class="flex items-baseline gap-2 mb-3">
                                 <span class="text-[26px] font-extrabold text-[#1E1B4B]">{{ $item['value'] }}</span>
-                                <span class="text-[12px] font-bold {{ $item['trend'][0] === '+' ? 'text-emerald-600' : 'text-red-500' }}">{{ $item['trend'] }}</span>
                             </div>
                             <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                                 <div class="{{ $c['bar'] }} h-full rounded-full" style="width: {{ $numericPct }}%;"></div>
@@ -188,13 +187,13 @@
             {{-- AI Predictions / Risk Alerts --}}
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-[18px] font-extrabold text-[#1E1B4B]">Alertes Prédictives IA (Décrochage & Risques)</h3>
+                    <h3 class="text-[18px] font-extrabold text-[#1E1B4B]">Alertes de Risque (Statuts & Paiements Réels)</h3>
                     <a href="/superadmin/ai-models" class="text-xs font-bold text-[#7C3AED] hover:underline flex items-center gap-1">
                         Gérer les modèles LLM <i class="ph ph-arrow-right font-bold"></i>
                     </a>
                 </div>
                 <div class="space-y-4">
-                    @foreach($predictions as $pred)
+                    @forelse($predictions as $pred)
                         @php
                             $sevMap = [
                                 'high'   => ['bg' => 'bg-[#FEF2F2]', 'border' => 'border-[#FECACA]', 'icon_bg' => 'bg-white border-[#FCA5A5]', 'icon_color' => 'text-[#DC2626]', 'icon' => 'warning-octagon', 'badge' => 'bg-[#FEE2E2] text-[#DC2626]', 'badge_text' => 'Intervention Requise'],
@@ -216,10 +215,11 @@
                                 </div>
                                 <p class="text-[13px] font-bold text-slate-700 mb-0.5">{{ $pred['risk'] }}</p>
                                 <p class="text-[12px] font-medium text-slate-500">{{ $pred['reason'] }}</p>
-                                <p class="text-[11px] text-slate-400 mt-1">Confiance IA : <span class="font-bold text-[#7C3AED]">{{ $pred['confidence'] }}%</span></p>
                             </div>
                         </div>
-                    @endforeach
+                    @empty
+                        <p class="text-[13px] text-slate-500 text-center py-6">Aucun établissement à risque détecté actuellement.</p>
+                    @endforelse
                 </div>
             </div>
         </div>

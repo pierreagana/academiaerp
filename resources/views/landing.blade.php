@@ -51,6 +51,7 @@
             border: 1px solid rgba(226, 232, 240, 0.8);
         }
     </style>
+    @include('SchoolDashboard::components.searchable-select')
 </head>
 <body class="text-slate-800 antialiased selection:bg-blue-600 selection:text-white overflow-x-hidden">
 
@@ -83,7 +84,7 @@
                     <i class="ph ph-user-circle text-base"></i> Connexion
                 </a>
                 <button onclick="openDemoModal()" class="flex items-center gap-2 text-xs font-bold text-white bg-primary-dynamic hover:opacity-95 px-5 py-2.5 rounded-xl shadow-sm transition transform hover:-translate-y-0.5 cursor-pointer">
-                    <i class="ph ph-paper-plane-tilt text-base font-bold"></i> Demander une Démo
+                    <i class="ph ph-paper-plane-tilt text-base font-bold"></i> Essai Gratuit (30 Jours)
                 </button>
             </div>
         </div>
@@ -263,19 +264,15 @@
                 @foreach($catalogItems as $index => $item)
                 <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-2xs hover:shadow-lg transition transform hover:-translate-y-1 flex flex-col justify-between group {{ $index >= 6 ? 'hidden module-extra-card' : '' }}">
                     <div>
-                        <div class="flex items-center justify-between mb-4">
+                        <div class="mb-4">
                             <div class="w-12 h-12 rounded-2xl {{ $item->icon_bg }} flex items-center justify-center text-2xl font-bold shadow-2xs group-hover:scale-110 transition transform">
                                 <i class="ph {{ $item->icon }}"></i>
                             </div>
-                            <span class="text-[11px] font-bold px-2.5 py-1 rounded-md {{ $item->price_color }} bg-slate-100">
-                                {{ $item->price_tag }}
-                            </span>
                         </div>
                         <h4 class="text-base font-extrabold text-slate-900 mb-2 group-hover:text-primary-dynamic transition">{{ $item->name }}</h4>
                         <p class="text-xs font-medium text-slate-500 leading-relaxed">{{ $item->description }}</p>
                     </div>
-                    <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-400">
-                        <span>Statut: <span class="text-emerald-600">Actif & Intégré</span></span>
+                    <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-end text-[11px] font-bold text-slate-400">
                         <i class="ph ph-arrow-right text-slate-400 group-hover:translate-x-1 transition font-bold"></i>
                     </div>
                 </div>
@@ -427,7 +424,7 @@
 
     <!-- ================= MODAL DEMANDER UNE DÉMO ================= -->
     <div id="demoModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-        <div class="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
+        <div class="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
             <div class="px-8 py-6 bg-primary-dynamic text-white flex items-center justify-between">
                 <div>
                     <h3 class="text-lg font-bold">Demande de Démo & Essai Gratuit</h3>
@@ -438,69 +435,171 @@
                 </button>
             </div>
 
-            <form onsubmit="submitDemoForm(event)" class="p-6 md:p-8 space-y-4 text-xs font-semibold text-slate-700 max-h-[80vh] overflow-y-auto">
+            <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data" class="p-6 md:p-8 space-y-4 text-xs font-semibold text-slate-700 max-h-[80vh] overflow-y-auto" id="demoFormScroll">
+                @csrf
+
+                @if ($errors->any())
+                <div class="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[12.5px] space-y-1">
+                    @foreach ($errors->all() as $error)
+                        <p class="flex items-start gap-2"><i class="ph ph-warning-circle mt-0.5"></i> {{ $error }}</p>
+                    @endforeach
+                </div>
+                @endif
+
+                <!-- Step Indicator -->
+                <div class="flex items-center gap-3 pb-2">
+                    <div class="flex items-center gap-2" id="demoStepDot1">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold bg-primary-dynamic text-white">1</span>
+                        <span class="text-slate-900">Vos Informations</span>
+                    </div>
+                    <div class="flex-1 h-px bg-slate-200"></div>
+                    <div class="flex items-center gap-2" id="demoStepDot2">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold bg-slate-200 text-slate-500" id="demoStepDot2Circle">2</span>
+                        <span class="text-slate-400" id="demoStepDot2Label">Détails de l'Établissement</span>
+                    </div>
+                </div>
+
+                <!-- Étape 1 : Vos Informations -->
+                <div id="demoStep1">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
                         <label class="block mb-1 font-bold">Nom de l'Établissement *</label>
-                        <input type="text" id="demoSchoolName" required placeholder="ex: Groupe Scolaire Excellence" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                        <input type="text" id="demoSchoolName" name="school_name" value="{{ old('school_name') }}" required placeholder="ex: Groupe Scolaire Excellence" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
                     </div>
 
                     <div>
                         <label class="block mb-1 font-bold">Nom du Responsable *</label>
-                        <input type="text" id="demoContactName" required placeholder="ex: M. Diallo" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                        <input type="text" id="demoContactName" name="name" value="{{ old('name') }}" required placeholder="ex: M. Diallo" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
                     </div>
                     <div>
                         <label class="block mb-1 font-bold">Téléphone *</label>
-                        <input type="text" id="demoPhone" required placeholder="+221 77 000 00 00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                        @include('SchoolDashboard::components.phone-input', [
+                            'required' => true,
+                            'selectClass' => 'w-[130px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-3 outline-none focus:border-blue-600 focus:bg-white transition cursor-pointer text-xs font-semibold text-slate-700',
+                            'inputClass' => 'flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition',
+                        ])
                     </div>
 
-                    <div>
+                    <div class="md:col-span-2">
                         <label class="block mb-1 font-bold">Email Officiel *</label>
-                        <input type="email" id="demoEmail" required placeholder="direction@ecole.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                        <input type="email" id="demoEmail" name="email" value="{{ old('email') }}" required placeholder="direction@ecole.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
                     </div>
 
+                    <div class="md:col-span-2 p-3 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 text-[12px] font-semibold flex items-start gap-2">
+                        <i class="ph ph-shield-check mt-0.5"></i>
+                        Vos identifiants de connexion (mot de passe généré automatiquement) vous seront envoyés à cette adresse email.
+                    </div>
+                </div>
+                </div>
+
+                <!-- Étape 2 : Détails de l'Établissement -->
+                <div id="demoStep2" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block mb-1 font-bold">Forfait Souhaité</label>
-                        <select id="demoPackage" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition cursor-pointer">
-                            <option value="Pro Excellence">Pro Excellence (Recommandé)</option>
-                            <option value="Starter">Starter (Petit Établissement)</option>
-                            <option value="Enterprise Multi-Campus">Enterprise Multi-Campus</option>
+                        <select id="demoPackage" name="plan_name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition cursor-pointer">
+                            <option value="Pro Excellence" {{ old('plan_name') === 'Pro Excellence' ? 'selected' : '' }}>Pro Excellence (Recommandé)</option>
+                            <option value="Starter" {{ old('plan_name') === 'Starter' ? 'selected' : '' }}>Starter (Petit Établissement)</option>
+                            <option value="Enterprise Multi-Campus" {{ old('plan_name') === 'Enterprise Multi-Campus' ? 'selected' : '' }}>Enterprise Multi-Campus</option>
                         </select>
                     </div>
 
                     <div>
+                        <label class="block mb-1 font-bold">Type d'Établissement</label>
+                        <select id="demoType" name="type" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition cursor-pointer">
+                            @foreach(['Secondaire (Lycée)', 'Collège', 'Primaire', 'Complexe Scolaire'] as $typeOpt)
+                                <option value="{{ $typeOpt }}" {{ old('type') === $typeOpt ? 'selected' : '' }}>{{ $typeOpt }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 font-bold">Secteur / Statut</label>
+                        <select id="demoSector" name="sector" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition cursor-pointer">
+                            @foreach($availableSectors ?? ['Privé', 'Public', 'Semi-privé'] as $sectorOpt)
+                                <option value="{{ $sectorOpt }}" {{ old('sector') === $sectorOpt ? 'selected' : '' }}>{{ $sectorOpt }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 font-bold">Régime Linguistique</label>
+                        <select id="demoLanguageRegime" name="language_regime" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition cursor-pointer">
+                            @foreach($availableLanguageRegimes ?? ['Monolingue (Français)', 'Bilingue (Français / Anglais)', 'International / Trilingue'] as $langOpt)
+                                <option value="{{ $langOpt }}" {{ old('language_regime') === $langOpt ? 'selected' : '' }}>{{ $langOpt }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 font-bold">Nombre d'Élèves Estimé</label>
+                        <input type="number" id="demoStudentsCount" name="students_count" value="{{ old('students_count') }}" min="0" placeholder="ex: 850" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block mb-1.5 font-bold flex items-center justify-between">
+                            <span>Niveaux &amp; Cycles d'Enseignement</span>
+                            <span class="text-[11px] font-normal text-slate-400">Sélectionnez les ordres dispensés</span>
+                        </label>
+                        <div class="flex flex-wrap gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                            @foreach($availableLevels ?? ['Préscolaire', 'Primaire', 'Collège', 'Lycée'] as $lvl)
+                                <label class="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200/80 rounded-lg cursor-pointer hover:border-blue-600 text-xs font-bold text-slate-700 transition">
+                                    <input type="checkbox" name="levels[]" value="{{ $lvl }}" {{ in_array($lvl, old('levels', [])) ? 'checked' : '' }} class="rounded text-blue-600 focus:ring-blue-600">
+                                    <span>{{ $lvl }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block mb-1.5 font-bold flex items-center justify-between">
+                            <span>Équipements &amp; Services Scolaires</span>
+                            <span class="text-[11px] font-normal text-slate-400">Sélectionnez les commodités</span>
+                        </label>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                            @foreach($facilities ?? [] as $facility)
+                                <label class="flex items-center gap-2 p-2 bg-white border border-slate-200/70 rounded-lg cursor-pointer hover:border-blue-600 transition text-xs font-semibold text-slate-800">
+                                    <input type="checkbox" name="facilities[]" value="{{ $facility->id }}" {{ in_array($facility->id, old('facilities', [])) ? 'checked' : '' }} class="rounded text-blue-600 focus:ring-blue-600">
+                                    <i class="ph {{ $facility->icon }} text-base text-blue-600 shrink-0"></i>
+                                    <span class="truncate">{{ $facility->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div>
                         <label class="block mb-1 font-bold">Slogan</label>
-                        <input type="text" id="demoSlogan" placeholder="Votre slogan" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                        <input type="text" id="demoSlogan" name="slogan" value="{{ old('slogan') }}" placeholder="Votre slogan" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
                     </div>
 
                     <div>
                         <label class="block mb-1 font-bold">Logo</label>
-                        <input type="file" id="demoLogo" accept="image/*" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-[9px] outline-none focus:border-blue-600 focus:bg-white transition file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:bg-slate-200 file:text-slate-700">
-                    </div>
-
-                    <div>
-                        <label class="block mb-1 font-bold">Mot de passe *</label>
-                        <input type="password" id="demoPassword" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
-                    </div>
-
-                    <div>
-                        <label class="block mb-1 font-bold">Confirmer le mot de passe *</label>
-                        <input type="password" id="demoPasswordConfirm" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                        <input type="file" id="demoLogo" name="logo" accept="image/*" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-[9px] outline-none focus:border-blue-600 focus:bg-white transition file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:bg-slate-200 file:text-slate-700">
                     </div>
 
                     <div class="md:col-span-2 relative">
                         <label class="block mb-1 font-bold">Adresse / Position géographique</label>
-                        <input type="text" id="demoAddressSearch" placeholder="Rechercher une ville, une rue..." autocomplete="off" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                        <input type="text" id="demoAddressSearch" name="address" value="{{ old('address') }}" placeholder="Rechercher une ville, une rue..." autocomplete="off" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
                         <ul id="demoAutocompleteResults" class="absolute z-[100] w-full bg-white border border-slate-200 rounded-lg shadow-xl mt-1 hidden max-h-48 overflow-y-auto"></ul>
-                        
+
                         <div id="demoMap" class="w-full h-48 mt-3 rounded-xl border border-slate-200 z-10 relative"></div>
-                        <input type="hidden" id="demoLatitude" value="5.359951">
-                        <input type="hidden" id="demoLongitude" value="-4.008256">
+                        <input type="hidden" id="demoLatitude" name="latitude" value="{{ old('latitude', '5.359951') }}">
+                        <input type="hidden" id="demoLongitude" name="longitude" value="{{ old('longitude', '-4.008256') }}">
                     </div>
                 </div>
+                </div>
 
-                <div class="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                <div class="pt-4 flex justify-end gap-3 border-t border-slate-100" id="demoFooterStep1">
                     <button type="button" onclick="closeDemoModal()" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold">Annuler</button>
+                    <button type="button" onclick="goToDemoStep(2)" class="px-6 py-2.5 rounded-xl bg-primary-dynamic text-white font-bold hover:opacity-95 transition shadow-sm flex items-center gap-2 cursor-pointer">
+                        Suivant <i class="ph ph-arrow-right font-bold"></i>
+                    </button>
+                </div>
+
+                <div class="pt-4 hidden justify-end gap-3 border-t border-slate-100" id="demoFooterStep2">
+                    <button type="button" onclick="goToDemoStep(1)" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold flex items-center gap-2">
+                        <i class="ph ph-arrow-left font-bold"></i> Précédent
+                    </button>
                     <button type="submit" class="px-6 py-2.5 rounded-xl bg-primary-dynamic text-white font-bold hover:opacity-95 transition shadow-sm flex items-center gap-2 cursor-pointer">
                         <i class="ph ph-paper-plane-right font-bold"></i> Envoyer Ma Demande
                     </button>
@@ -508,6 +607,25 @@
             </form>
         </div>
     </div>
+
+    <!-- ================= MODAL CONFIRMATION DEMANDE ENVOYÉE ================= -->
+    <div id="demoSuccessModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 p-8 text-center">
+            <div class="w-16 h-16 mx-auto rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
+                <i class="ph-fill ph-check-circle text-4xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">Demande envoyée !</h3>
+            <p class="text-sm text-slate-500 mt-2 leading-relaxed">
+                Merci ! Votre demande est en cours d'examen par notre équipe. Vous recevrez vos identifiants de connexion par email dès son approbation.
+            </p>
+            <button onclick="document.getElementById('demoSuccessModal').classList.add('hidden')" class="mt-6 px-6 py-2.5 rounded-xl bg-primary-dynamic text-white font-bold hover:opacity-95 transition shadow-sm cursor-pointer">
+                Compris
+            </button>
+        </div>
+    </div>
+    @if(session('registration_submitted'))
+    <script>document.addEventListener('DOMContentLoaded', () => document.getElementById('demoSuccessModal').classList.remove('hidden'));</script>
+    @endif
 
     <script>
         let demoMap = null;
@@ -612,7 +730,7 @@
 
         function openDemoModal() {
             document.getElementById('demoModal').classList.remove('hidden');
-            initDemoMap();
+            goToDemoStep(1);
         }
         function closeDemoModal() {
             document.getElementById('demoModal').classList.add('hidden');
@@ -620,6 +738,49 @@
         function selectPackage(pkgName) {
             document.getElementById('demoPackage').value = pkgName;
             openDemoModal();
+        }
+
+        function goToDemoStep(step) {
+            const step1 = document.getElementById('demoStep1');
+            const step2 = document.getElementById('demoStep2');
+            const footer1 = document.getElementById('demoFooterStep1');
+            const footer2 = document.getElementById('demoFooterStep2');
+
+            if (step === 2) {
+                const requiredInputs = step1.querySelectorAll('[required]');
+                for (const input of requiredInputs) {
+                    if (!input.checkValidity()) {
+                        input.reportValidity();
+                        return;
+                    }
+                }
+            }
+
+            step1.classList.toggle('hidden', step !== 1);
+            step2.classList.toggle('hidden', step !== 2);
+
+            footer1.classList.remove('hidden', 'flex');
+            footer1.classList.add(step === 1 ? 'flex' : 'hidden');
+            footer2.classList.remove('hidden', 'flex');
+            footer2.classList.add(step === 2 ? 'flex' : 'hidden');
+
+            const dot1Circle = document.querySelector('#demoStepDot1 span:first-child');
+            const dot2Circle = document.getElementById('demoStepDot2Circle');
+            const dot2Label = document.getElementById('demoStepDot2Label');
+            if (step === 2) {
+                dot1Circle.className = 'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold bg-emerald-500 text-white';
+                dot1Circle.innerHTML = '<i class="ph ph-check text-xs font-bold"></i>';
+                dot2Circle.className = 'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold bg-primary-dynamic text-white';
+                dot2Label.className = 'text-slate-900';
+                setTimeout(initDemoMap, 50);
+            } else {
+                dot1Circle.className = 'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold bg-primary-dynamic text-white';
+                dot1Circle.textContent = '1';
+                dot2Circle.className = 'w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold bg-slate-200 text-slate-500';
+                dot2Label.className = 'text-slate-400';
+            }
+
+            document.getElementById('demoFormScroll').scrollTop = 0;
         }
 
         function toggleExtraModules() {
@@ -648,11 +809,12 @@
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeDemoModal();
         });
-        function submitDemoForm(e) {
-            e.preventDefault();
-            alert("Merci ! Votre demande d'essai gratuit a été transmise avec succès à l'équipe AcademiaERP. Nous vous contacterons sous 24h.");
-            closeDemoModal();
-        }
+        // Real submission: the form POSTs natively to {{ route('register') }},
+        // which creates the school + admin account (password auto-generated
+        // and emailed) and logs the user straight into their new dashboard.
+        @if ($errors->any())
+            document.addEventListener('DOMContentLoaded', openDemoModal);
+        @endif
     </script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>

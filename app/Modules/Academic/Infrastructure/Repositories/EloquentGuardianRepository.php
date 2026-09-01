@@ -38,6 +38,17 @@ class EloquentGuardianRepository implements GuardianRepositoryInterface
     public function delete($id)
     {
         $guardian = $this->find($id);
-        return $guardian->delete();
+        $parentAccount = $guardian->parentAccount;
+
+        $result = $guardian->delete();
+
+        // A ParentAccount is the actual login (session + Sanctum tokens for the mobile
+        // app); deleting its last linked Guardian must revoke access, or the parent
+        // stays logged in indefinitely even though the school removed them.
+        if ($parentAccount && $parentAccount->guardianRecords()->doesntExist()) {
+            $parentAccount->tokens()->delete();
+        }
+
+        return $result;
     }
 }

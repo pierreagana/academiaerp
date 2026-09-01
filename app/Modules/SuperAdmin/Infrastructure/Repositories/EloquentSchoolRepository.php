@@ -66,7 +66,13 @@ class EloquentSchoolRepository implements SchoolRepositoryInterface
             contactEmail: $school->contact_email ?? ('contact@' . strtolower(str_replace(' ', '', $school->name)) . '.sn'),
             contactPhone: $school->contact_phone ?? '+221 33 800 00 00',
             domain: $school->domain ?? (strtolower(str_replace(' ', '', $school->name)) . '.agana.school'),
-            renewalDate: $school->created_at ? $school->created_at->addYear()->format('Y-m-d') : '-'
+            renewalDate: $school->created_at ? $school->created_at->addYear()->format('Y-m-d') : '-',
+            latitude: $school->latitude !== null ? (float) $school->latitude : null,
+            longitude: $school->longitude !== null ? (float) $school->longitude : null,
+            sector: $school->sector,
+            isBilingual: (bool) $school->is_bilingual,
+            languageRegime: $school->language_regime,
+            levels: is_array($school->levels) ? $school->levels : null
         );
     }
 }

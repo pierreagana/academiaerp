@@ -45,7 +45,7 @@
         </div>
         <div class="bg-violet-50 rounded-2xl p-5 border border-violet-100 shadow-sm">
             <p class="text-[11px] font-bold text-violet-500 uppercase tracking-wider mb-2 flex items-center gap-1"><i class="ph-fill ph-sparkle"></i> Analyse IA</p>
-            <p class="text-[13px] text-violet-900">Surveillez les catégories dont les dépenses augmentent fortement par rapport à la moyenne trimestrielle.</p>
+            <p class="text-[13px] text-violet-900" id="expensesAiAnalysisText">Analyse des dépenses par catégorie en cours...</p>
         </div>
     </div>
 
@@ -98,4 +98,24 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('{{ route("school.finance.expenses.ai-analysis") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const el = document.getElementById('expensesAiAnalysisText');
+            el.innerText = data.success ? data.analysis : (data.error || "Analyse IA indisponible pour le moment.");
+        })
+        .catch(() => {
+            document.getElementById('expensesAiAnalysisText').innerText = "Erreur de communication avec le serveur.";
+        });
+    });
+</script>
 @endsection

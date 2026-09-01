@@ -257,16 +257,40 @@
         function aiRewriteMessage() {
             const titleInput = document.getElementById('broadcastTitle');
             const msgInput = document.getElementById('broadcastMessage');
-            
-            if (titleInput && !titleInput.value) {
-                titleInput.value = "Chers directeurs et administrateurs, mise à jour importante de la plateforme AcademiaERP";
-            }
-            if (msgInput) {
-                msgInput.value = "Chers partenaires et équipes pédagogiques,\n\nNous vous informons de la mise en service des nouvelles optimisations sur Academia ERP SaaS. L'ensemble des services reste pleinement operational. Notre équipe d'assistance reste à votre entière disposition 24/7.\n\nCordialement,\nLa Direction AcademiaERP SaaS.";
-            }
-
             const toast = document.getElementById('broadcastToast');
-            if (toast) toast.classList.remove('hidden');
+            const toastMsg = document.getElementById('broadcastToastMsg');
+
+            fetch('{{ route("superadmin.broadcast.ai-rewrite") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    title: titleInput ? titleInput.value : '',
+                    message: msgInput ? msgInput.value : ''
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    toastMsg.innerText = data.error || "Échec de la génération IA.";
+                    toast.classList.remove('hidden', 'bg-purple-50', 'border-purple-200', 'text-purple-800');
+                    toast.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-800');
+                    return;
+                }
+                if (titleInput && data.title) titleInput.value = data.title;
+                if (msgInput && data.message) msgInput.value = data.message;
+
+                toastMsg.innerText = "Message réécrit par l'IA avec succès.";
+                toast.classList.remove('hidden', 'bg-rose-50', 'border-rose-200', 'text-rose-800');
+                toast.classList.add('bg-purple-50', 'border-purple-200', 'text-purple-800');
+            })
+            .catch(() => {
+                toastMsg.innerText = "Erreur de communication avec le serveur.";
+                toast.classList.remove('hidden', 'bg-purple-50', 'border-purple-200', 'text-purple-800');
+                toast.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-800');
+            });
         }
 
         function formatText(type) {

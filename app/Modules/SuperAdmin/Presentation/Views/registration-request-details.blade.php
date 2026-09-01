@@ -122,14 +122,14 @@
                 </div>
 
                 <div class="mb-4">
-                    <p class="text-[12px] font-bold text-slate-700 mb-3">Score de Fiabilité IA</p>
+                    <p class="text-[12px] font-bold text-slate-700 mb-3">Score de Complétude du Dossier</p>
                     <div class="flex items-center gap-4 mb-2">
                         <div class="flex-1 h-2 bg-[#DBEAFE] rounded-full overflow-hidden">
-                            <div class="h-full bg-[#059669] rounded-full" style="width: 90%;"></div>
+                            <div class="h-full bg-[#059669] rounded-full" style="width: {{ $reliabilityScore }}%;"></div>
                         </div>
-                        <span class="text-[16px] font-bold text-[#059669]">90/100</span>
+                        <span class="text-[16px] font-bold text-[#059669]">{{ $reliabilityScore }}/100</span>
                     </div>
-                    <p class="text-[14px] text-slate-600 font-medium">Domaine vérifié, coordonnées de contact valides.</p>
+                    <p class="text-[14px] text-slate-600 font-medium">{{ implode(', ', $reliabilityNotes) }}.</p>
                 </div>
 
                 <div class="mt-6">
@@ -204,6 +204,25 @@
             
             <!-- Action Buttons -->
             @if($status == 'en attente' || $status == 'en cours d\'analyse')
+                <div class="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4" x-data="{ isFounder: false }">
+                    <form action="{{ route('superadmin.registration-requests.approve', $id) }}" method="POST" id="approve-form">
+                        @csrf
+                        <label class="flex items-center gap-2.5 cursor-pointer mb-3">
+                            <input type="checkbox" name="is_founder" value="1" x-model="isFounder" class="w-4 h-4 rounded border-slate-300 text-[#031C5B] focus:ring-[#031C5B]">
+                            <span class="text-[13.5px] font-bold text-slate-700">Ce compte est Fondateur (gère plusieurs écoles)</span>
+                        </label>
+                        <div x-show="isFounder" x-cloak>
+                            <label class="block text-[12px] font-semibold text-slate-600 mb-1">Rattacher à un groupe existant (optionnel)</label>
+                            <select name="school_group_id" class="w-full bg-white border border-slate-200 text-slate-900 text-[13.5px] rounded-lg px-3 py-2.5 outline-none focus:border-[#031C5B]">
+                                <option value="">— Nouveau groupe —</option>
+                                @foreach($schoolGroups as $group)
+                                    <option value="{{ $group->id }}">{{ $group->name }} (fondateur : {{ $group->founder->name ?? '—' }})</option>
+                                @endforeach
+                            </select>
+                            <p class="text-[11px] text-slate-400 mt-1">Si aucun groupe n'est sélectionné, un nouveau groupe est créé avec ce compte comme fondateur.</p>
+                        </div>
+                    </form>
+                </div>
                 <div class="flex gap-4 mt-4">
                     <form action="{{ route('superadmin.registration-requests.reject', $id) }}" method="POST" class="flex-1" onsubmit="return confirm('Rejeter cette demande ?');">
                         @csrf
@@ -212,13 +231,10 @@
                             <span class="text-[14px] font-semibold">Rejeter la<br>demande</span>
                         </button>
                     </form>
-                    <form action="{{ route('superadmin.registration-requests.approve', $id) }}" method="POST" class="flex-1">
-                        @csrf
-                        <button type="submit" class="w-full flex flex-col items-center justify-center bg-[#031C5B] hover:bg-blue-900 text-white py-4 rounded-xl transition shadow-md">
-                            <i class="ph ph-check-circle text-[22px] mb-1"></i>
-                            <span class="text-[14px] font-semibold">Approuver &<br>Activer</span>
-                        </button>
-                    </form>
+                    <button type="submit" form="approve-form" class="flex-1 w-full flex flex-col items-center justify-center bg-[#031C5B] hover:bg-blue-900 text-white py-4 rounded-xl transition shadow-md">
+                        <i class="ph ph-check-circle text-[22px] mb-1"></i>
+                        <span class="text-[14px] font-semibold">Approuver &<br>Activer</span>
+                    </button>
                 </div>
             @else
                 <div class="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-center text-slate-600 text-sm font-medium">

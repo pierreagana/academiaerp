@@ -4,9 +4,11 @@ namespace App\Modules\HR\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Contract extends Model
 {
+    use BelongsToSchool;
     protected $table = 'hr_contracts';
 
     public const STATUSES = [

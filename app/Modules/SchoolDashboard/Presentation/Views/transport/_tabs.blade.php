@@ -6,6 +6,9 @@
         'school.transport.stops' => 'Arrêts de Bus',
         'school.transport.trips' => 'Journal des Trajets',
         'school.transport.map' => 'Carte & Suivi',
+        'school.transport.requests' => "Demandes d'Inscription",
+        'school.transport.scanner' => 'Scanner',
+        'school.transport.history' => 'Historique',
     ];
 @endphp
 <div class="flex items-center gap-1 border-b border-slate-200 mb-6 overflow-x-auto">

@@ -4,9 +4,11 @@ namespace App\Modules\Transport\Domain\Models;
 
 use App\Modules\Academic\Domain\Models\Student;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class RouteStop extends Model
 {
+    use BelongsToSchool;
     protected $table = 'transport_route_stops';
 
     protected $fillable = [

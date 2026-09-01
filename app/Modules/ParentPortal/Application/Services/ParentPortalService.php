@@ -2,6 +2,7 @@
 
 namespace App\Modules\ParentPortal\Application\Services;
 
+use App\Modules\Academic\Domain\Models\Award;
 use App\Modules\Academic\Domain\Models\Student;
 use App\Modules\Academic\Domain\Models\ParentAccount;
 use App\Modules\Bulletin\Application\Services\BulletinStatsService;
@@ -42,6 +43,8 @@ class ParentPortalService
             ->where('status', 'active')
             ->with('academicClass')
             ->get()
+            ->unique('id')
+            ->values()
             ->map(function (Student $student) {
                 $student->setAttribute('school', School::find($student->school_id));
                 return $student;
@@ -64,6 +67,7 @@ class ParentPortalService
             $student->setAttribute('average', $bulletin['average']);
             $student->setAttribute('attendanceRate', $attendance['attendanceRate']);
             $student->setAttribute('feeStatus', $fees['status']);
+            $student->setAttribute('latestAward', $this->latestAward($student));
 
             return $student;
         });
@@ -72,7 +76,10 @@ class ParentPortalService
             ->flatMap(function (Student $student) {
                 return collect($this->homework($student)['upcoming'])->map(function ($assignment) use ($student) {
                     $assignment->setAttribute('studentFirstName', $student->first_name);
+                    $assignment->setAttribute('studentLastName', $student->last_name);
                     $assignment->setAttribute('studentId', $student->id);
+                    $assignment->setAttribute('studentPhotoPath', $student->photo_path);
+                    $assignment->setAttribute('studentClassName', $student->academicClass?->name ?? '');
                     return $assignment;
                 });
             })
@@ -173,6 +180,20 @@ class ParentPortalService
         ];
     }
 
+    public function diplomas(Student $student): array
+    {
+        $awards = Award::where('recipient_type', 'student')->where('recipient_id', $student->id)
+            ->with('type')->orderByDesc('awarded_date')->get();
+
+        return ['awards' => $awards];
+    }
+
+    private function latestAward(Student $student): ?Award
+    {
+        return Award::where('recipient_type', 'student')->where('recipient_id', $student->id)
+            ->with('type')->orderByDesc('awarded_date')->first();
+    }
+
     public function homework(Student $student): array
     {
         $assignments = collect();
@@ -191,21 +212,33 @@ class ParentPortalService
                 });
         }
 
+        $upcoming = $assignments->filter(function ($a) {
+            if (!$a->scheduled_at) return true;
+            return $a->scheduled_at->isFuture() || $a->scheduled_at->isToday() || $a->scheduled_at >= now()->subDays(7);
+        })->values();
+
+        // If no strictly upcoming, show the most recent assignments so the parent always sees active homework
+        if ($upcoming->isEmpty() && $assignments->isNotEmpty()) {
+            $upcoming = $assignments->take(5);
+        }
+
         return [
             'assignments' => $assignments,
-            'upcoming' => $assignments->filter(fn ($a) => $a->scheduled_at?->isFuture())->values(),
+            'upcoming' => $upcoming,
             'graded' => $assignments->filter(fn ($a) => $a->submission?->score !== null)->values(),
         ];
     }
 
     public function fees(Student $student, string $type = 'tuition'): array
     {
-        return $this->feeService->summaryFor($student, $type);
+        $zone = $type === 'transport' ? $this->transport($student)['route']?->zone : null;
+
+        return $this->feeService->summaryFor($student, $type, $zone);
     }
 
     public function canteen(Student $student): array
     {
-        $account = CanteenAccount::where('holder_type', Student::class)->where('holder_id', $student->id)->first();
+        $account = CanteenAccount::where('holder_type', 'student')->where('holder_id', $student->id)->first();
 
         $weekStart = MenuItem::currentWeekStart();
 

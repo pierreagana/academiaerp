@@ -20,6 +20,24 @@ class EloquentFeeLevelRepository implements FeeLevelRepositoryInterface
     public function create(array $data)
     {
         $data['school_id'] = $data['school_id'] ?? auth()->user()->school_id;
+
+        // The (school_id, level, academic_year) unique index is a plain DB
+        // constraint — it doesn't know about deleted_at, so a soft-deleted row
+        // still blocks a fresh insert for the same combination. Restore and
+        // update it instead of letting that hit a duplicate-key error.
+        $trashed = FeeLevel::onlyTrashed()
+            ->where('school_id', $data['school_id'])
+            ->where('type', $data['type'])
+            ->where('level', $data['level'])
+            ->where('academic_year', $data['academic_year'])
+            ->first();
+
+        if ($trashed) {
+            $trashed->restore();
+            $trashed->update($data);
+            return $trashed;
+        }
+
         return FeeLevel::create($data);
     }
 

@@ -64,6 +64,13 @@
                                 <td class="px-5 py-4 text-right space-x-3">
                                     <a href="{{ route('school.academic.homework.live', $assignment->id) }}" class="text-[12px] font-bold text-[#031C5B] hover:underline">Session</a>
                                     <a href="{{ route('school.academic.homework.submissions', $assignment->id) }}" class="text-[12px] font-bold text-slate-500 hover:underline">Copies</a>
+                                    @if($assignment->liveStatus !== 'in_progress')
+                                    <form action="{{ route('school.academic.homework.destroy', $assignment->id) }}" method="POST" class="inline" onsubmit="return confirm('Supprimer « {{ addslashes($assignment->title) }} » ? Cette action supprimera aussi toutes les copies et présences liées.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-[12px] font-bold text-red-400 hover:text-red-600 transition">Supprimer</button>
+                                    </form>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

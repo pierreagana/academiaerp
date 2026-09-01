@@ -5,6 +5,7 @@ namespace App\Modules\ParentPortal\Presentation\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Modules\Academic\Application\Services\ParentPortalAccountService;
 use App\Modules\Academic\Domain\Models\ParentAccount;
+use App\Modules\SuperAdmin\Domain\Models\Country;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -14,13 +15,15 @@ class ParentAuthController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:30', 'unique:parent_accounts,phone'],
+            'phone' => ['required', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:8'],
             'device_name' => ['required', 'string'],
-        ], [
-            'phone.unique' => 'Un compte existe déjà avec ce numéro. Connectez-vous plutôt.',
         ]);
+
+        if (Country::applyPhoneMatch(ParentAccount::query(), 'phone', $data['phone'])->exists()) {
+            return response()->json(['message' => 'Un compte existe déjà avec ce numéro. Connectez-vous plutôt.'], 422);
+        }
 
         $account = $service->registerSelf($data);
         $token = $account->createToken($data['device_name'])->plainTextToken;
@@ -39,7 +42,7 @@ class ParentAuthController extends Controller
             'device_name' => ['required', 'string'],
         ]);
 
-        $account = ParentAccount::where('phone', $data['phone'])->first();
+        $account = Country::applyPhoneMatch(ParentAccount::query(), 'phone', $data['phone'])->first();
 
         if (!$account || !Hash::check($data['password'], $account->password)) {
             return response()->json(['message' => 'Identifiants incorrects.'], 401);

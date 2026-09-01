@@ -14,6 +14,9 @@ class LandingPageController extends Controller
     {
         $settingsRaw = GlobalSetting::all()->pluck('value', 'key')->toArray();
 
+        $catalogItems = ServiceCatalogItem::where('is_enabled', true)->get();
+        $moduleCount = $catalogItems->count();
+
         $settings = [
             'platform_name'          => $settingsRaw['platform_name'] ?? 'AcademiaERP SaaS',
             'support_email'          => $settingsRaw['support_email'] ?? 'contact@academiaerp.com',
@@ -26,7 +29,7 @@ class LandingPageController extends Controller
             'cms_hero_headline'      => $settingsRaw['cms_hero_headline'] ?? 'Pilotez Vos Établissements avec Intendance & IA',
             'cms_hero_subtitle'      => $settingsRaw['cms_hero_subtitle'] ?? 'De la gestion des inscriptions et du calcul des bulletins au paiement Mobile Money (Orange Money, Wave), en passant par la cantine, l\'infirmerie et le suivi GPS des bus.',
             'cms_hero_primary_cta'   => $settingsRaw['cms_hero_primary_cta'] ?? 'Essai Gratuit (30 Jours)',
-            'cms_hero_secondary_cta' => $settingsRaw['cms_hero_secondary_cta'] ?? 'Explorer les 12 Modules',
+            'cms_hero_secondary_cta' => $settingsRaw['cms_hero_secondary_cta'] ?? "Explorer les {$moduleCount} Modules",
             'cms_hero_image'         => $settingsRaw['cms_hero_image'] ?? '/images/hero_dashboard.png',
 
             // Stat Counters
@@ -38,7 +41,7 @@ class LandingPageController extends Controller
             // Pricing & Modules Headings
             'cms_pricing_title'      => $settingsRaw['cms_pricing_title'] ?? 'Des Forfaits Transparents Adaptés à Votre Établissement',
             'cms_pricing_subtitle'   => $settingsRaw['cms_pricing_subtitle'] ?? 'Facturation annuelle claire avec mises à jour et sauvegarde cloud incluses.',
-            'cms_modules_title'      => $settingsRaw['cms_modules_title'] ?? 'Une Suite Complète de 12 Modules Intégrés',
+            'cms_modules_title'      => $settingsRaw['cms_modules_title'] ?? "Une Suite Complète de {$moduleCount} Modules Intégrés",
             'cms_modules_subtitle'   => $settingsRaw['cms_modules_subtitle'] ?? 'Découvrez tous les modules spécialisés activables à la carte pour chaque établissement.',
 
             // Feature Blocks & Images
@@ -102,13 +105,11 @@ class LandingPageController extends Controller
                     'price' => 150000,
                     'billing_cycle' => 'yearly',
                     'max_students' => 300,
-                    'max_storage_gb' => 50,
                     'is_popular' => false,
                     'features' => [
                         'Gestion Scolaire & Inscriptions (300 Élèves max)',
                         'Notes, Bulletins & Calcul de Moyennes',
                         'Portail Parents & Élèves Web',
-                        '50 Go de Stockage Sécurisé Cloud',
                         'Support Standard par Email'
                     ]
                 ],
@@ -118,7 +119,6 @@ class LandingPageController extends Controller
                     'price' => 350000,
                     'billing_cycle' => 'yearly',
                     'max_students' => 1500,
-                    'max_storage_gb' => 200,
                     'is_popular' => true,
                     'features' => [
                         'Gestion Scolaire Complexe (1 500 Élèves max)',
@@ -136,7 +136,6 @@ class LandingPageController extends Controller
                     'price' => 750000,
                     'billing_cycle' => 'yearly',
                     'max_students' => 0,
-                    'max_storage_gb' => 1000,
                     'is_popular' => false,
                     'features' => [
                         'Élèves Illimités & Supervision Multi-Campus',
@@ -151,8 +150,14 @@ class LandingPageController extends Controller
             ]);
         }
 
-        $catalogItems = ServiceCatalogItem::where('is_enabled', true)->get();
+        $facilities = \App\Modules\SuperAdmin\Domain\Models\Facility::where('is_active', true)->orderBy('order')->orderBy('name')->get();
+        $availableSectors = \App\Modules\SuperAdmin\Domain\Models\School::getAvailableSectors();
+        $availableLevels = \App\Modules\SuperAdmin\Domain\Models\School::getAvailableLevels();
+        $availableLanguageRegimes = \App\Modules\SuperAdmin\Domain\Models\School::getAvailableLanguageRegimes();
 
-        return view('landing', compact('settings', 'packages', 'catalogItems', 'faqItems', 'testimonials'));
+        return view('landing', compact(
+            'settings', 'packages', 'catalogItems', 'faqItems', 'testimonials',
+            'facilities', 'availableSectors', 'availableLevels', 'availableLanguageRegimes'
+        ));
     }
 }

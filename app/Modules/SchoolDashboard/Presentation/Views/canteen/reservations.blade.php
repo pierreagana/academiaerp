@@ -51,7 +51,7 @@
                 <i class="ph-fill ph-sparkle text-purple-600 text-lg"></i>
                 <h3 class="font-extrabold text-slate-800 text-[13px]">Prédiction IA</h3>
             </div>
-            <p class="text-[12px] text-slate-600 font-medium leading-relaxed">Anticipez les besoins en fonction de la fréquentation observée cette semaine.</p>
+            <p class="text-[12px] text-slate-600 font-medium leading-relaxed" id="canteenForecastText">Analyse des repas de la semaine en cours...</p>
             <a href="{{ route('school.canteen.inventory') }}" class="inline-flex items-center gap-1 mt-2 text-[12.5px] font-bold text-purple-700 hover:underline">Ajuster les commandes <i class="ph-bold ph-arrow-right"></i></a>
         </div>
     </div>
@@ -253,4 +253,24 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('{{ route("school.canteen.reservations.ai-forecast") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const el = document.getElementById('canteenForecastText');
+            el.innerText = data.success ? data.forecast : (data.error || "Analyse IA indisponible pour le moment.");
+        })
+        .catch(() => {
+            document.getElementById('canteenForecastText').innerText = "Erreur de communication avec le serveur.";
+        });
+    });
+</script>
 @endsection

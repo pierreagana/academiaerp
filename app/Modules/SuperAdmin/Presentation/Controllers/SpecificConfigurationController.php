@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\SuperAdmin\Application\UseCases\GetSpecificConfigurationUseCase;
 use App\Modules\SuperAdmin\Domain\Models\GlobalSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 
 class SpecificConfigurationController extends Controller
 {
@@ -41,13 +42,35 @@ class SpecificConfigurationController extends Controller
             }
         }
 
+        // Provider secret keys are never echoed back into the form — a blank
+        // submission means "leave the existing value alone", not "clear it".
+        // Non-blank submissions are encrypted before storage.
+        $secretKeyFields = collect(['orange_money', 'wave', 'mtn', 'card'])
+            ->map(fn ($provider) => $provider . '_secret_key');
+
+        foreach ($secretKeyFields as $field) {
+            if (!array_key_exists($field, $data) || $data[$field] === '') {
+                unset($data[$field]);
+            } else {
+                $data[$field] = Crypt::encryptString($data[$field]);
+            }
+        }
+
         foreach ($data as $key => $value) {
+            $formattedValue = $value;
+            if (in_array($key, ['school_sectors', 'school_education_levels', 'school_language_regimes', 'school_academic_years']) && is_string($value)) {
+                $items = array_values(array_filter(array_map('trim', explode(',', $value))));
+                $formattedValue = json_encode($items, JSON_UNESCAPED_UNICODE);
+            } elseif (is_array($value)) {
+                $formattedValue = json_encode($value, JSON_UNESCAPED_UNICODE);
+            }
+
             GlobalSetting::updateOrCreate(
                 ['key' => $key],
                 [
-                    'value'       => is_array($value) ? json_encode($value) : (string)$value,
+                    'value'       => (string)$formattedValue,
                     'type'        => is_numeric($value) ? 'integer' : 'string',
-                    'is_public'   => true,
+                    'is_public'   => !$secretKeyFields->contains($key),
                     'description' => 'Configuration spécifique système',
                 ]
             );

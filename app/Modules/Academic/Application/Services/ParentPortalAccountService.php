@@ -5,6 +5,7 @@ namespace App\Modules\Academic\Application\Services;
 use App\Modules\Academic\Domain\Models\Guardian;
 use App\Modules\Academic\Domain\Models\ParentAccount;
 use App\Modules\Academic\Domain\Models\Student;
+use App\Modules\SuperAdmin\Domain\Models\Country;
 use App\Modules\SuperAdmin\Domain\Models\School;
 use Illuminate\Support\Str;
 
@@ -21,7 +22,7 @@ class ParentPortalAccountService
      */
     public function sync(Guardian $guardian, string $name, string $phone, ?string $email): ?string
     {
-        $existing = ParentAccount::where('phone', $phone)->first();
+        $existing = Country::applyPhoneMatch(ParentAccount::query(), 'phone', $phone)->first();
 
         if ($existing) {
             $guardian->update(['parent_id' => $existing->id]);
@@ -78,7 +79,7 @@ class ParentPortalAccountService
             return false;
         }
 
-        $matchingGuardians = $student->guardians()->where('phone', $parent->phone)->get();
+        $matchingGuardians = Country::applyPhoneMatch($student->guardians(), 'phone', $parent->phone)->get();
         if ($matchingGuardians->isEmpty()) {
             return false;
         }

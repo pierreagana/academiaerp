@@ -123,8 +123,14 @@
 
                     <!-- Téléphone -->
                     <div class="space-y-2">
-                        <label for="phone" class="block text-[13.5px] font-bold text-slate-700">Téléphone</label>
-                        <input type="text" id="phone" name="phone" value="{{ old('phone', $staffMember->phone ?? '') }}" placeholder="Ex: +221 77 000 00 00" class="w-full bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 outline-none focus:border-[#031C5B] focus:ring-4 focus:ring-[#031C5B]/10 transition-all shadow-sm">
+                        <label for="phone_number" class="block text-[13.5px] font-bold text-slate-700">Téléphone</label>
+                        @php [$staffPhoneCode, $staffPhoneNumber] = \App\Modules\SuperAdmin\Domain\Models\Country::splitPhone($staffMember->phone ?? null); @endphp
+                        @include('SchoolDashboard::components.phone-input', [
+                            'selectedCode' => $staffPhoneCode,
+                            'selectedNumber' => $staffPhoneNumber,
+                            'selectClass' => 'w-[110px] bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 text-slate-900 text-[13px] font-medium rounded-xl px-2 py-3.5 outline-none focus:border-[#031C5B] focus:ring-4 focus:ring-[#031C5B]/10 transition-all shadow-sm cursor-pointer',
+                            'inputClass' => 'flex-1 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 outline-none focus:border-[#031C5B] focus:ring-4 focus:ring-[#031C5B]/10 transition-all shadow-sm',
+                        ])
                     </div>
 
                     <!-- Poste -->

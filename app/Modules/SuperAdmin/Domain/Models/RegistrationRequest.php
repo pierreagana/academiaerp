@@ -15,5 +15,25 @@ class RegistrationRequest extends Model
         'status',
         'plan_requested',
         'notes',
+        'type',
+        'sector',
+        'language_regime',
+        'levels',
+        'students_count',
+        'slogan',
+        'city',
+        'country',
+        'address',
+        'latitude',
+        'longitude',
+        'logo_path',
+        'facilities',
+    ];
+
+    protected $casts = [
+        'levels' => 'array',
+        'facilities' => 'array',
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
     ];
 }

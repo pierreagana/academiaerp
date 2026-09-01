@@ -49,16 +49,63 @@
         </div>
     </div>
 
-    @if($student->allergies || $student->medical_conditions)
+    @if($student->allergies || $student->medical_conditions || $parentAllergies->isNotEmpty())
     <div class="alert-box">
         <h3>Alertes & Antécédents</h3>
         @if($student->allergies)
-            <p><strong>Allergies :</strong> {{ $student->allergies }}</p>
+            <p><strong>Allergies (fiche d'inscription) :</strong> {{ $student->allergies }}</p>
         @endif
         @if($student->medical_conditions)
             <p><strong>Conditions Médicales :</strong> {{ $student->medical_conditions }}</p>
         @endif
+        @foreach($parentAllergies as $allergy)
+            <p><strong>{{ $allergy->name }}{{ $allergy->severity ? ' — ' . $allergy->severity : '' }} :</strong> {{ $allergy->notes ?? 'Signalé par le parent' }} <em>(signalé par le parent)</em></p>
+        @endforeach
     </div>
+    @endif
+
+    @if($parentVaccines->isNotEmpty())
+    <h2 class="section">Carnet de Vaccination (signalé par le parent)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Vaccin</th>
+                <th>Fait le</th>
+                <th>Prochain rappel</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($parentVaccines as $vaccine)
+            <tr>
+                <td>{{ $vaccine->name }}</td>
+                <td>{{ $vaccine->administered_at->format('d/m/Y') }}</td>
+                <td>{{ $vaccine->next_due_at?->format('d/m/Y') ?? '-' }}</td>
+                <td>{{ $vaccine->notes ?? '-' }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+    @endif
+
+    @if($parentPrescriptions->isNotEmpty())
+    <h2 class="section">Ordonnances / Documents (signalé par le parent)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Document</th>
+                <th>Envoyé le</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($parentPrescriptions as $doc)
+            <tr>
+                <td>{{ $doc->name }}</td>
+                <td>{{ $doc->created_at->format('d/m/Y') }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
     @endif
 
     @php $emergencyContact = $student->guardians->first(); @endphp

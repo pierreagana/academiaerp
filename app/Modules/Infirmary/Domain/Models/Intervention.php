@@ -4,9 +4,11 @@ namespace App\Modules\Infirmary\Domain\Models;
 
 use App\Modules\Academic\Domain\Models\Student;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Intervention extends Model
 {
+    use BelongsToSchool;
     protected $table = 'infirmary_interventions';
 
     public const DECISIONS = [

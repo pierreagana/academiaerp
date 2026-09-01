@@ -5,9 +5,11 @@ namespace App\Modules\Academic\Domain\Models;
 use App\Models\User;
 use App\Modules\SuperAdmin\Domain\Models\School;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Role extends Model
 {
+    use BelongsToSchool;
     protected $fillable = [
         'school_id',
         'name',

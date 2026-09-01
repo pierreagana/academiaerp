@@ -3,6 +3,7 @@
 use App\Modules\ParentPortal\Presentation\Controllers\ParentAuthController;
 use App\Modules\ParentPortal\Presentation\Controllers\ParentChildController;
 use App\Modules\ParentPortal\Presentation\Controllers\ParentDashboardController;
+use App\Modules\ParentPortal\Presentation\Controllers\SchoolTrackWebController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('parent')->name('parent.')->group(function () {
@@ -20,11 +21,16 @@ Route::prefix('parent')->name('parent.')->group(function () {
         Route::post('/ajouter-enfant', [ParentChildController::class, 'addChild'])->middleware('throttle:5,1')->name('children.add');
 
         Route::get('/', [ParentDashboardController::class, 'dashboard'])->name('dashboard');
+        Route::post('/school-track/souscrire', [SchoolTrackWebController::class, 'subscribe'])->middleware('throttle:10,1')->name('school-track.subscribe');
         Route::get('/{student}/bulletin', [ParentDashboardController::class, 'bulletin'])->name('bulletin')->whereNumber('student');
+        Route::get('/{student}/diplomes', [ParentDashboardController::class, 'diplomas'])->name('diplomes')->whereNumber('student');
+        Route::get('/{student}/diplomes/{award}/imprimer', [ParentDashboardController::class, 'printDiploma'])->name('diplomes.print')->whereNumber('student')->whereNumber('award');
         Route::get('/{student}/presence', [ParentDashboardController::class, 'attendance'])->name('attendance')->whereNumber('student');
         Route::get('/{student}/devoirs', [ParentDashboardController::class, 'homework'])->name('homework')->whereNumber('student');
         Route::get('/{student}/frais', [ParentDashboardController::class, 'fees'])->name('fees')->whereNumber('student');
         Route::get('/{student}/cantine', [ParentDashboardController::class, 'canteen'])->name('canteen')->whereNumber('student');
+        Route::post('/{student}/cantine/demande', [ParentDashboardController::class, 'requestCanteenEnrollment'])->name('canteen.request')->whereNumber('student');
         Route::get('/{student}/transport', [ParentDashboardController::class, 'transport'])->name('transport')->whereNumber('student');
+        Route::post('/{student}/transport/demande', [ParentDashboardController::class, 'requestTransportEnrollment'])->name('transport.request')->whereNumber('student');
     });
 });

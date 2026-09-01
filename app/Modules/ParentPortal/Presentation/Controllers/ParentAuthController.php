@@ -4,8 +4,11 @@ namespace App\Modules\ParentPortal\Presentation\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Academic\Application\Services\ParentPortalAccountService;
+use App\Modules\Academic\Domain\Models\ParentAccount;
+use App\Modules\SuperAdmin\Domain\Models\Country;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class ParentAuthController extends Controller
 {
@@ -23,12 +26,21 @@ class ParentAuthController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:30', 'unique:parent_accounts,phone'],
+            'phone_country_code' => ['nullable', 'string'],
+            'phone_number' => ['required', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ], [
-            'phone.unique' => 'Un compte existe déjà avec ce numéro. Connectez-vous plutôt.',
         ]);
+
+        $data['phone'] = Country::combinePhone($data['phone_country_code'] ?? null, $data['phone_number']);
+        unset($data['phone_country_code'], $data['phone_number']);
+
+        // Not a plain unique:parent_accounts,phone rule — an existing account may
+        // still be in the old bare-digits format while this form always submits
+        // the new "+225 ..." one, so an exact-string check would miss real dupes.
+        if (Country::applyPhoneMatch(ParentAccount::query(), 'phone', $data['phone'])->exists()) {
+            return back()->withErrors(['phone_number' => 'Un compte existe déjà avec ce numéro. Connectez-vous plutôt.'])->withInput();
+        }
 
         $account = $service->registerSelf($data);
 
@@ -45,12 +57,18 @@ class ParentAuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (!Auth::guard('parent')->attempt($credentials, $request->boolean('remember'))) {
+        // Matches across both storage eras (bare local digits vs "+225 ..."
+        // combined) instead of Auth::attempt()'s exact-string comparison —
+        // see Country::applyPhoneMatch() for why that distinction matters here.
+        $account = Country::applyPhoneMatch(ParentAccount::query(), 'phone', $credentials['phone'])->first();
+
+        if (!$account || !Hash::check($credentials['password'], $account->password)) {
             return back()->withErrors([
                 'phone' => 'Identifiants incorrects.',
             ])->onlyInput('phone');
         }
 
+        Auth::guard('parent')->login($account, $request->boolean('remember'));
         $request->session()->regenerate();
 
         return redirect()->intended(route('parent.dashboard'));

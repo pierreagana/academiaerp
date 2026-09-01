@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Modules\Academic\Domain\Models\AcademicClass;
 use App\Modules\Academic\Domain\Models\Semester;
 use App\Modules\Academic\Domain\Models\Student;
+use App\Modules\Academic\Domain\Models\StudentClassMovement;
+use App\Modules\Bulletin\Application\Services\BulletinStatsService;
+use App\Modules\Bulletin\Domain\Repositories\BulletinGradeRepositoryInterface;
 use App\Modules\Presence\Domain\Models\AttendanceRecord;
 use App\Modules\ReportCard\Application\DTOs\CreateCompetencyDTO;
 use App\Modules\ReportCard\Application\DTOs\CreateDomainDTO;
@@ -28,7 +31,11 @@ use Illuminate\Http\Request;
 
 class ReportCardController extends Controller
 {
-    const CYCLES = ['Cycle 1', 'Cycle 2', 'Cycle 3'];
+    /** Same taxonomy as AcademicClass::LEVELS_BY_CYCLE — a domain's cycle must match a real class cycle to be usable. */
+    public static function CYCLES(): array
+    {
+        return array_keys(AcademicClass::LEVELS_BY_CYCLE);
+    }
 
     public function dashboard(ReportCardStatsService $stats)
     {
@@ -55,7 +62,7 @@ class ReportCardController extends Controller
     public function referentials(ReportCardDomainRepositoryInterface $repository)
     {
         $domains = $repository->allWithTree();
-        $cycles = self::CYCLES;
+        $cycles = self::CYCLES();
 
         return view('SchoolDashboard::report-card.referentials', compact('domains', 'cycles'));
     }
@@ -63,7 +70,7 @@ class ReportCardController extends Controller
     public function storeDomain(Request $request, CreateDomainUseCase $useCase)
     {
         $data = $request->validate([
-            'cycle' => ['required', 'string', 'in:' . implode(',', self::CYCLES)],
+            'cycle' => ['required', 'string', 'in:' . implode(',', self::CYCLES())],
             'name' => ['required', 'string', 'max:255'],
         ]);
 
@@ -131,6 +138,15 @@ class ReportCardController extends Controller
         $competencyId = $request->get('competency_id');
 
         $selectedClass = $classId ? $classes->firstWhere('id', (int) $classId) : null;
+
+        // Once a class is picked, only show competencies from domains tagged for
+        // that class's own cycle — a préscolaire class has no business being
+        // evaluated against collège-level domains, and vice versa.
+        if ($selectedClass && $selectedClass->cycle) {
+            $competencies = $competencies->filter(
+                fn ($competency) => $competency->subdomain->domain->cycle === $selectedClass->cycle
+            )->values();
+        }
         $subjects = $selectedClass ? $selectedClass->subjects()->orderBy('name')->get() : collect();
         if ($selectedClass && $teacher = auth()->user()->teacher) {
             $subjects = $subjects->filter(fn ($subject) => $teacher->teachesSubject($subject->id))->values();
@@ -202,9 +218,16 @@ class ReportCardController extends Controller
         return $observations->where('teacher_id', $teacher->id)->values();
     }
 
-    public function studentProfile($id, ReportCardAssessmentRepositoryInterface $assessmentRepository, ReportCardObservationRepositoryInterface $observationRepository, ReportCardStatsService $stats)
-    {
-        $student = Student::where('school_id', auth()->user()->school_id)->with(['academicClass', 'guardians'])->findOrFail($id);
+    public function studentProfile(
+        $id,
+        ReportCardAssessmentRepositoryInterface $assessmentRepository,
+        ReportCardObservationRepositoryInterface $observationRepository,
+        ReportCardStatsService $stats,
+        BulletinGradeRepositoryInterface $gradeRepository,
+        BulletinStatsService $bulletinStats
+    ) {
+        $schoolId = auth()->user()->school_id;
+        $student = Student::where('school_id', $schoolId)->with(['academicClass', 'guardians'])->findOrFail($id);
 
         $currentSemester = $stats->currentSemester(auth()->user()->school_id);
 
@@ -212,8 +235,13 @@ class ReportCardController extends Controller
             ? $assessmentRepository->forStudentAndSemester($student->id, $currentSemester->id)
             : collect();
 
-        $allCompetencies = ReportCardCompetency::whereHas('subdomain.domain', function ($q) use ($student) {
+        $studentCycle = $student->academicClass?->cycle;
+
+        $allCompetencies = ReportCardCompetency::whereHas('subdomain.domain', function ($q) use ($student, $studentCycle) {
             $q->where('school_id', $student->school_id);
+            if ($studentCycle) {
+                $q->where('cycle', $studentCycle);
+            }
         })->with('subdomain.domain')->get();
 
         $competencyTree = $allCompetencies->groupBy(fn ($c) => $c->subdomain->domain->name)
@@ -236,8 +264,29 @@ class ReportCardController extends Controller
 
         $observations = $this->visibleObservations($observationRepository->forStudent($student->id), $student->academic_class_id);
 
+        // Résultats par trimestre (année scolaire en cours) — même logique que le livret PDF.
+        $termResults = collect();
+        if ($currentSemester && $student->academic_class_id) {
+            $semesters = $bulletinStats->academicYearSemesters($schoolId, $currentSemester);
+            $termResults = $semesters->map(fn ($semester) => array_merge(
+                ['semester' => $semester],
+                $this->semesterResultFor($student->academic_class_id, $semester->id, $student->id, $gradeRepository, $bulletinStats)
+            ));
+        }
+
+        $totalDays = $records->count();
+        $justifiedAbsences = $records->where('status', AttendanceRecord::STATUS_ABSENT)->filter(fn ($r) => $r->justified)->count();
+        $lateCount = $records->where('status', AttendanceRecord::STATUS_LATE)->count();
+
+        $disciplinaryRecords = \App\Modules\Academic\Domain\Models\StudentDisciplinaryRecord::where('student_id', $student->id)
+            ->orderByDesc('recorded_date')
+            ->get();
+
+        $attendanceHistory = $records;
+
         return view('SchoolDashboard::report-card.student', compact(
-            'student', 'competencyTree', 'competencyMap', 'radarData', 'attendanceRate', 'unjustifiedAbsences', 'recentRecords', 'observations', 'currentSemester'
+            'student', 'competencyTree', 'competencyMap', 'radarData', 'attendanceRate', 'unjustifiedAbsences', 'recentRecords', 'observations', 'currentSemester',
+            'termResults', 'totalDays', 'justifiedAbsences', 'lateCount', 'disciplinaryRecords', 'attendanceHistory'
         ));
     }
 
@@ -264,26 +313,126 @@ class ReportCardController extends Controller
         return redirect()->route('school.report-card.student', $data['student_id'])->with('success', 'Observation ajoutée avec succès !');
     }
 
-    public function printLivret($id, ReportCardAssessmentRepositoryInterface $assessmentRepository, ReportCardObservationRepositoryInterface $observationRepository, ReportCardStatsService $stats)
+    /** Real per-subject grades + moyenne + rang for one student, in one class, for one semester. Shared by the current-year term loop and the multi-year Parcours below. */
+    private function semesterResultFor(int $classId, int $semesterId, int $studentId, BulletinGradeRepositoryInterface $gradeRepository, BulletinStatsService $bulletinStats): array
     {
-        $student = Student::where('school_id', auth()->user()->school_id)->with('academicClass')->findOrFail($id);
+        $classGrades = $gradeRepository->forClassAndSemester($classId, $semesterId);
+        $classGrades = $bulletinStats->mergeHomeworkGrades($classGrades, $classId, $semesterId);
+        $subjectGrades = $bulletinStats->aggregateToSubjectGrades($classGrades->where('student_id', $studentId));
+        $average = $bulletinStats->studentAverage($subjectGrades);
+
+        $ranking = $bulletinStats->classRanking($classId, $semesterId, $classGrades);
+        $studentRow = collect($ranking)->firstWhere('student.id', $studentId);
+
+        return [
+            'subjectGrades' => $subjectGrades,
+            'average' => $average,
+            'rank' => $studentRow['rank'] ?? null,
+            'classSize' => count($ranking),
+        ];
+    }
+
+    public function printLivret(
+        $id,
+        ReportCardAssessmentRepositoryInterface $assessmentRepository,
+        ReportCardObservationRepositoryInterface $observationRepository,
+        ReportCardStatsService $stats,
+        BulletinGradeRepositoryInterface $gradeRepository,
+        BulletinStatsService $bulletinStats
+    ) {
+        $schoolId = auth()->user()->school_id;
+        $student = Student::where('school_id', $schoolId)->with(['academicClass', 'branch'])->findOrFail($id);
         $school = auth()->user()->school;
-        $currentSemester = $stats->currentSemester(auth()->user()->school_id);
+        $currentSemester = $stats->currentSemester($schoolId);
 
         $competencyMap = $currentSemester
             ? $assessmentRepository->forStudentAndSemester($student->id, $currentSemester->id)
             : collect();
 
-        $allCompetencies = ReportCardCompetency::whereHas('subdomain.domain', function ($q) use ($student) {
+        $studentCycle = $student->academicClass?->cycle;
+
+        $allCompetencies = ReportCardCompetency::whereHas('subdomain.domain', function ($q) use ($student, $studentCycle) {
             $q->where('school_id', $student->school_id);
+            if ($studentCycle) {
+                $q->where('cycle', $studentCycle);
+            }
         })->with('subdomain.domain')->get();
 
         $competencyTree = $allCompetencies->groupBy(fn ($c) => $c->subdomain->domain->name)
             ->map(fn ($comps) => $comps->groupBy(fn ($c) => $c->subdomain->name));
 
-        $observations = $this->visibleObservations($observationRepository->forStudent($student->id), $student->academic_class_id);
+        $observations = $observationRepository->forStudent($student->id);
 
-        return view('SchoolDashboard::report-card.print', compact('student', 'school', 'currentSemester', 'competencyMap', 'competencyTree', 'observations'));
+        // Résultats par trimestre (année scolaire en cours)
+        $termResults = collect();
+        if ($currentSemester && $student->academic_class_id) {
+            $semesters = $bulletinStats->academicYearSemesters($schoolId, $currentSemester);
+            $termResults = $semesters->map(fn ($semester) => array_merge(
+                ['semester' => $semester],
+                $this->semesterResultFor($student->academic_class_id, $semester->id, $student->id, $gradeRepository, $bulletinStats)
+            ));
+        }
+
+        $isLastTerm = $currentSemester ? $bulletinStats->isLastTermOfYear($schoolId, $currentSemester) : false;
+        $annualAverage = $isLastTerm ? $bulletinStats->annualFinalAverage($schoolId, $student, $currentSemester) : null;
+
+        // Parcours scolaire : année en cours + chaque année antérieure retracée via les mouvements de classe réels
+        $movements = StudentClassMovement::where('student_id', $student->id)->with(['fromClass', 'toClass'])->orderByDesc('created_at')->get();
+
+        $currentTerm = $termResults->last();
+        $yearRows = collect([[
+            'academic_year' => $student->academic_year,
+            'class' => $student->academicClass->name ?? '—',
+            'average' => $annualAverage ?? $currentTerm['average'] ?? null,
+            'rank' => $currentTerm['rank'] ?? null,
+            'classSize' => $currentTerm['classSize'] ?? null,
+            'decision' => 'Année en cours',
+        ]]);
+
+        foreach ($movements as $movement) {
+            $pastSemester = $movement->from_academic_year
+                ? Semester::where('school_id', $schoolId)->where('academic_year', $movement->from_academic_year)->orderByDesc('term_number')->first()
+                : null;
+
+            $pastResult = ($pastSemester && $movement->fromClass)
+                ? $this->semesterResultFor($movement->from_class_id, $pastSemester->id, $student->id, $gradeRepository, $bulletinStats)
+                : ['average' => null, 'rank' => null, 'classSize' => null];
+
+            $yearRows->push([
+                'academic_year' => $movement->from_academic_year,
+                'class' => $movement->fromClass->name ?? '—',
+                'average' => $pastResult['average'],
+                'rank' => $pastResult['rank'],
+                'classSize' => $pastResult['classSize'],
+                'decision' => $movement->type === StudentClassMovement::TYPE_PROMOTION ? 'Passage en classe supérieure' : 'Transfert',
+            ]);
+        }
+
+        // Assiduité (année scolaire en cours)
+        $since = $currentSemester?->start_date ?? now()->subMonths(4)->toDateString();
+        $attendanceRecords = AttendanceRecord::where('student_id', $student->id)->where('date', '>=', $since)->get();
+        $totalDays = $attendanceRecords->count();
+        $justifiedAbsences = $attendanceRecords->where('status', AttendanceRecord::STATUS_ABSENT)->filter(fn ($r) => $r->justified)->count();
+        $unjustifiedAbsences = $attendanceRecords->where('status', AttendanceRecord::STATUS_ABSENT)->filter(fn ($r) => !$r->justified)->count();
+        $lateCount = $attendanceRecords->where('status', AttendanceRecord::STATUS_LATE)->count();
+
+        $disciplinaryRecords = \App\Modules\Academic\Domain\Models\StudentDisciplinaryRecord::where('student_id', $student->id)
+            ->orderByDesc('recorded_date')
+            ->get();
+
+        // Transport scolaire (résumé réel, module Transport)
+        $transportStops = \Illuminate\Support\Facades\DB::table('transport_route_stop_student')
+            ->join('transport_route_stops', 'transport_route_stops.id', '=', 'transport_route_stop_student.route_stop_id')
+            ->join('transport_routes', 'transport_routes.id', '=', 'transport_route_stops.route_id')
+            ->where('transport_route_stop_student.student_id', $student->id)
+            ->select('transport_route_stop_student.period', 'transport_route_stops.name as stop_name', 'transport_routes.name as route_name')
+            ->get();
+
+        return view('SchoolDashboard::report-card.print', compact(
+            'student', 'school', 'currentSemester', 'competencyMap', 'competencyTree', 'observations',
+            'termResults', 'isLastTerm', 'annualAverage', 'yearRows',
+            'totalDays', 'justifiedAbsences', 'unjustifiedAbsences', 'lateCount', 'transportStops', 'disciplinaryRecords'
+        ));
     }
 
     public function printGlobalReport(ReportCardStatsService $stats)

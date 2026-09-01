@@ -4,10 +4,11 @@ namespace App\Modules\Bulletin\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Support\Tenancy\BelongsToSchool;
 
 class BulletinEvaluationType extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToSchool;
 
     const HOMEWORK_TYPE_HOMEWORK = 'devoir_maison';
     const HOMEWORK_TYPE_TEST = 'interrogation';

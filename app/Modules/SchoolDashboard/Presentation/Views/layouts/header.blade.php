@@ -19,6 +19,16 @@
             <input type="text" placeholder="Rechercher élèves, personnel..." class="w-64 pl-10 pr-4 py-2 bg-slate-100/70 border-none rounded-full text-[13px] text-slate-700 focus:ring-2 focus:ring-primary-dynamic transition placeholder:text-slate-400">
         </div>
 
+        <!-- Pointage Présence École (prof, tant que non pointé aujourd'hui) -->
+        @if(auth()->user()->teacher && !auth()->user()->teacher->hasCheckedInAtSchoolToday())
+        <form action="{{ route('school.teacher.checkin-school') }}" method="POST">
+            @csrf
+            <button type="submit" class="flex items-center gap-2 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-full text-[12.5px] font-bold transition">
+                <i class="ph-bold ph-map-pin"></i> Pointer mon arrivée
+            </button>
+        </form>
+        @endif
+
         <!-- Icons -->
         <div class="flex items-center gap-2">
             <button class="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 transition relative">

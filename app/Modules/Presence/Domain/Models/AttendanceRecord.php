@@ -5,9 +5,11 @@ namespace App\Modules\Presence\Domain\Models;
 use App\Modules\Academic\Domain\Models\AcademicClass;
 use App\Modules\Academic\Domain\Models\Student;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class AttendanceRecord extends Model
 {
+    use BelongsToSchool;
     protected $table = 'attendance_records';
 
     const STATUS_PRESENT = 'present';

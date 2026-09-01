@@ -5,13 +5,62 @@ namespace App\Modules\SuperAdmin\Presentation\Controllers;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Modules\SuperAdmin\Application\UseCases\ListSystemLogsUseCase;
+use App\Modules\SuperAdmin\Application\Services\AIService;
 use App\Modules\SuperAdmin\Domain\Models\SystemLog;
+use Illuminate\Support\Facades\DB;
 
 class SystemLogsController extends Controller
 {
     public function __construct(
         private ListSystemLogsUseCase $listSystemLogsUseCase
     ) {}
+
+    /**
+     * Real log-based aggregates (no more fake "98.5%"/"5 requêtes"/"99.98%
+     * Uptime" — those fields don't exist anywhere in system_logs), narrated
+     * by AI into a short summary.
+     */
+    public function aiAuditSummary(AIService $aiService)
+    {
+        $sevenDaysAgo = now()->subDays(7);
+        $fourteenDaysAgo = now()->subDays(14);
+
+        $thisWeekCount = SystemLog::where('created_at', '>=', $sevenDaysAgo)->count();
+        $lastWeekCount = SystemLog::whereBetween('created_at', [$fourteenDaysAgo, $sevenDaysAgo])->count();
+        $errorCount = SystemLog::where('created_at', '>=', $sevenDaysAgo)->whereIn('level', ['error', 'critical'])->count();
+        $topSource = SystemLog::where('created_at', '>=', $sevenDaysAgo)
+            ->select('source', DB::raw('count(*) as c'))
+            ->groupBy('source')
+            ->orderByDesc('c')
+            ->first();
+
+        $changePct = $lastWeekCount > 0
+            ? round((($thisWeekCount - $lastWeekCount) / $lastWeekCount) * 100)
+            : null;
+
+        $stats = [
+            'logs_7_derniers_jours' => $thisWeekCount,
+            'logs_semaine_precedente' => $lastWeekCount,
+            'variation_pct' => $changePct,
+            'erreurs_critiques_7j' => $errorCount,
+            'source_la_plus_active' => $topSource->source ?? 'aucune',
+            'occurrences_source_active' => $topSource->c ?? 0,
+        ];
+
+        $systemPrompt = "Tu es un analyste sécurité pour AcademiaERP, un SaaS de gestion scolaire. Tu résumes des statistiques réelles de journaux système en français, de façon factuelle — jamais d'alarmisme si les chiffres sont normaux, jamais de minimisation si les erreurs augmentent nettement.";
+        $userPrompt = "Voici les statistiques réelles des journaux système des 7 derniers jours (données SQL, pas d'invention) :\n"
+            . json_encode($stats, JSON_UNESCAPED_UNICODE)
+            . "\n\nRédige un résumé court (2 à 3 phrases), professionnel, en français, basé strictement sur ces chiffres.";
+
+        $result = $aiService->generateText($systemPrompt, $userPrompt, 200);
+
+        return response()->json([
+            'success' => $result['success'],
+            'summary' => $result['text'],
+            'error' => $result['error'],
+            'stats' => $stats,
+        ]);
+    }
 
     public function index(Request $request)
     {

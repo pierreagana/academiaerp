@@ -19,6 +19,7 @@ use App\Modules\Finance\Domain\Repositories\FeeLevelRepositoryInterface;
 use App\Modules\Finance\Domain\Repositories\PaymentRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Validation\Rule;
 
 class FeeController extends Controller
 {
@@ -109,18 +110,36 @@ class FeeController extends Controller
 
         $feeLevels = $repository->all($type);
         $levels = AcademicClass::where('school_id', $schoolId)->pluck('level')->filter()->unique()->values();
+        $zones = \App\Modules\Transport\Domain\Models\Route::where('school_id', $schoolId)
+            ->whereNotNull('zone')
+            ->distinct()
+            ->orderBy('zone')
+            ->pluck('zone');
 
-        return view('SchoolDashboard::finance.config', compact('feeLevels', 'levels', 'type'));
+        return view('SchoolDashboard::finance.config', compact('feeLevels', 'levels', 'zones', 'type'));
     }
 
     public function storeFeeLevel(Request $request, CreateFeeLevelUseCase $useCase)
     {
         $data = $this->validateFeeLevel($request);
 
-        $dto = new CreateFeeLevelDTO($data);
-        $useCase->execute($dto);
+        // Tuition can be created for several levels at once (checkbox list) — one
+        // identical fee structure gets created per selected level. Cantine (school-wide)
+        // and transport (one zone) always submit $data['level'] as a plain string.
+        if ($data['type'] === 'tuition' && is_array($data['level'])) {
+            $levels = $data['level'];
+            foreach ($levels as $level) {
+                $useCase->execute(new CreateFeeLevelDTO(array_merge($data, ['level' => $level])));
+            }
+            $message = count($levels) > 1
+                ? count($levels) . ' structures de frais créées avec succès.'
+                : 'Structure de frais créée avec succès.';
+        } else {
+            $useCase->execute(new CreateFeeLevelDTO($data));
+            $message = 'Structure de frais créée avec succès.';
+        }
 
-        return redirect()->route('school.finance.fees.config', ['type' => $data['type']])->with('success', 'Structure de frais créée avec succès.');
+        return redirect()->route('school.finance.fees.config', ['type' => $data['type']])->with('success', $message);
     }
 
     public function updateFeeLevel(Request $request, $id, UpdateFeeLevelUseCase $useCase)
@@ -143,21 +162,83 @@ class FeeController extends Controller
 
     private function validateFeeLevel(Request $request, $ignoreId = null): array
     {
-        $data = $request->validate([
+        $baseRules = [
             'type' => ['required', 'string', 'in:' . implode(',', array_keys(FeeLevel::TYPES))],
-            'level' => ['required_if:type,tuition', 'nullable', 'string', 'max:255'],
             'academic_year' => ['required', 'string', 'max:20'],
             'registration_fee' => ['required', 'numeric', 'min:0'],
-            'monthly_fee' => ['required', 'numeric', 'min:0'],
             'installments_count' => ['required', 'integer', 'min:0', 'max:12'],
             'start_date' => ['required', 'date'],
-        ]);
+            // Optional custom per-installment breakdown — null/absent means every
+            // installment is an equal split of total_scolarite (see below).
+            'monthly_amounts' => ['nullable', 'array'],
+            'monthly_amounts.*' => ['numeric', 'min:0'],
+            // Always user-entered — the total of all installments (registration fee is
+            // separate). monthly_fee is never typed directly; it's always derived from
+            // this, either as an even split or as the average of a custom breakdown.
+            'total_scolarite' => ['required', 'numeric', 'min:0'],
+        ];
 
-        // Cantine/transport tariffs are school-wide, not per grade level —
+        // Creating a tuition structure: a checkbox list lets one submission pick several
+        // levels at once (one structure per level). Transport is one zone per submission.
+        // Editing always targets one existing row, so both keep the single-level shape.
+        $isCreate = $ignoreId === null;
+        $type = $request->input('type');
+        $schoolId = auth()->user()->school_id;
+        $academicYear = $request->input('academic_year');
+
+        if ($isCreate && $type === 'tuition') {
+            $baseRules['level'] = ['required', 'array', 'min:1'];
+            $baseRules['level.*'] = [
+                'string', 'max:255',
+                Rule::unique('fee_levels', 'level')
+                    ->where(fn ($q) => $q->where('school_id', $schoolId)->where('academic_year', $academicYear))
+                    ->whereNull('deleted_at'),
+            ];
+        } elseif ($isCreate && $type === 'transport') {
+            $baseRules['level'] = [
+                'required', 'string', 'max:255',
+                Rule::unique('fee_levels', 'level')
+                    ->where(fn ($q) => $q->where('school_id', $schoolId)->where('academic_year', $academicYear))
+                    ->whereNull('deleted_at'),
+            ];
+        } else {
+            $baseRules['level'] = ['required_if:type,tuition,transport', 'nullable', 'string', 'max:255'];
+        }
+
+        $data = $request->validate($baseRules);
+
+        // Cantine tariffs are school-wide, not per zone/level —
         // force the sentinel level regardless of what (if anything) was posted.
-        if ($data['type'] !== 'tuition') {
+        if ($data['type'] === 'cantine') {
             $data['level'] = FeeLevel::schoolWideLevelFor($data['type']);
         }
+
+        if (!empty($data['monthly_amounts'])) {
+            if (count($data['monthly_amounts']) !== (int) $data['installments_count']) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'monthly_amounts' => "Le nombre de montants saisis doit correspondre au nombre de mensualités ({$data['installments_count']}).",
+                ]);
+            }
+
+            $ceiling = (float) $data['total_scolarite'];
+            $sum = array_sum($data['monthly_amounts']);
+            if ($sum > $ceiling) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'monthly_amounts' => 'Le total réparti (' . number_format($sum, 0, ',', ' ') . ' FCFA) dépasse la Scolarité (Somme Totale) de '
+                        . number_format($ceiling, 0, ',', ' ') . ' FCFA.',
+                ]);
+            }
+
+            // monthly_fee is never typed directly — keep it populated with the average,
+            // since it's still a real, always-present column read elsewhere.
+            $data['monthly_fee'] = $data['installments_count'] > 0 ? round($sum / (int) $data['installments_count'], 2) : 0;
+        } else {
+            $data['monthly_amounts'] = null;
+            // No custom breakdown: an even split of the entered total across installments.
+            $data['monthly_fee'] = $data['installments_count'] > 0 ? round((float) $data['total_scolarite'] / (int) $data['installments_count'], 2) : 0;
+        }
+
+        unset($data['total_scolarite']);
 
         return $data;
     }

@@ -24,6 +24,7 @@ use App\Modules\Finance\Domain\Repositories\ScholarshipTypeRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ScholarshipController extends Controller
 {
@@ -37,7 +38,14 @@ class ScholarshipController extends Controller
         $types = $typeRepository->all();
         $allStudents = Student::where('school_id', $schoolId)->orderBy('first_name')->get();
 
-        return view('SchoolDashboard::finance.scholarships.dashboard', compact('stats', 'breakdown', 'pending', 'types', 'allStudents'));
+        // Real facts for the sidebar — not fabricated "+4.2M FCFA économisés"
+        // or generic "anomaly detected" copy with nothing behind it.
+        $remainingBudget = max($stats['totalBudget'] - $stats['totalDisbursed'], 0);
+        $topType = $breakdown->first();
+
+        return view('SchoolDashboard::finance.scholarships.dashboard', compact(
+            'stats', 'breakdown', 'pending', 'types', 'allStudents', 'remainingBudget', 'topType'
+        ));
     }
 
     public function students(Request $request, ScholarshipRepositoryInterface $repository, ScholarshipTypeRepositoryInterface $typeRepository)
@@ -86,9 +94,11 @@ class ScholarshipController extends Controller
 
     public function store(Request $request, CreateScholarshipUseCase $useCase)
     {
+        $schoolId = auth()->user()->school_id;
+
         $data = $request->validate([
-            'student_id' => ['required', 'exists:students,id'],
-            'scholarship_type_id' => ['required', 'exists:scholarship_types,id'],
+            'student_id' => ['required', Rule::exists('students', 'id')->where('school_id', $schoolId)],
+            'scholarship_type_id' => ['required', Rule::exists('scholarship_types', 'id')->where('school_id', $schoolId)],
             'monthly_amount' => ['required', 'numeric', 'min:0'],
             'declared_average' => ['nullable', 'numeric', 'min:0', 'max:20'],
             'priority' => ['nullable', 'boolean'],
@@ -96,6 +106,13 @@ class ScholarshipController extends Controller
             'expiry_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
+
+        $type = \App\Modules\Finance\Domain\Models\ScholarshipType::find($data['scholarship_type_id']);
+        if ($type && $type->min_average !== null && isset($data['declared_average']) && $data['declared_average'] < $type->min_average) {
+            return back()->withErrors([
+                'declared_average' => "La moyenne déclarée ({$data['declared_average']}) est inférieure au minimum requis pour ce type de bourse ({$type->min_average}).",
+            ])->withInput();
+        }
 
         $data['status'] = 'pending';
         $data['priority'] = $request->boolean('priority');
@@ -202,6 +219,10 @@ class ScholarshipController extends Controller
     {
         $scholarship = Scholarship::where('school_id', auth()->user()->school_id)->findOrFail($scholarshipId);
 
+        if ($scholarship->status !== 'active') {
+            return back()->withErrors(['label' => "Impossible d'ajouter une tranche : la bourse n'est pas active."]);
+        }
+
         $data = $request->validate([
             'label' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:1'],
@@ -252,7 +273,7 @@ class ScholarshipController extends Controller
             'scholarship_id' => $scholarship->id,
             'label' => $data['label'],
             'file_path' => $path,
-            'status' => 'verified',
+            'status' => 'pending',
         ]);
 
         return back()->with('success', 'Document ajouté avec succès.');
@@ -276,6 +297,10 @@ class ScholarshipController extends Controller
     public function storeGrade(Request $request, $scholarshipId)
     {
         $scholarship = Scholarship::where('school_id', auth()->user()->school_id)->findOrFail($scholarshipId);
+
+        if ($scholarship->status !== 'active') {
+            return back()->withErrors(['period' => "Impossible d'enregistrer une note : la bourse n'est pas active."]);
+        }
 
         $data = $request->validate([
             'period' => ['required', 'string', 'max:255'],

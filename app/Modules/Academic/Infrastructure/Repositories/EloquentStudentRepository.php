@@ -14,11 +14,30 @@ class EloquentStudentRepository implements StudentRepositoryInterface
             ->with(['academicClass', 'guardians'])->get();
     }
 
-    public function paginate($perPage = 10)
+    public function paginate($perPage = 10, array $filters = [])
     {
-        return Student::where('school_id', auth()->user()->school_id)
+        $query = Student::where('school_id', auth()->user()->school_id)
             ->whereBranch(auth()->user()->activeBranchId())
-            ->with(['academicClass', 'guardians'])->latest()->paginate($perPage);
+            ->with(['academicClass', 'guardians']);
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('roll_number', 'like', "%{$search}%");
+            });
+        }
+
+        if (!empty($filters['academic_class_id'])) {
+            $query->where('academic_class_id', $filters['academic_class_id']);
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        return $query->latest()->paginate($perPage)->withQueryString();
     }
 
     public function find($id)

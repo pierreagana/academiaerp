@@ -125,13 +125,17 @@
                         <i class="ph ph-brain text-xl"></i>
                     </div>
                     <div>
-                        <h3 class="text-base font-extrabold text-slate-900 mb-1.5">Analyse IA du Stockage & Restauration</h3>
-                        <p class="text-xs text-slate-600 leading-relaxed mb-3">
-                            Le taux de croissance des données suggère qu'une mise à niveau de la capacité de stockage (S3) sera nécessaire dans environ 45 jours.
-                        </p>
-                        <a href="{{ route('superadmin.specific-configuration') }}" class="inline-flex items-center gap-1 text-xs font-bold text-[#7C3AED] hover:underline transition">
-                            Activer la compression intelligente <i class="ph ph-arrow-right text-xs font-bold"></i>
-                        </a>
+                        <h3 class="text-base font-extrabold text-slate-900 mb-1.5">État Réel des Sauvegardes</h3>
+                        @if($lastBackupAt)
+                            <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                                {{ $backupCount }} sauvegarde(s) enregistrée(s), dernière le {{ $lastBackupAt->format('d/m/Y à H:i') }}.
+                                Fréquence configurée : {{ $schedule['full_frequency'] }} · Rétention : {{ $schedule['retention_days'] }}.
+                            </p>
+                        @else
+                            <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                                Aucune sauvegarde enregistrée pour le moment. Fréquence configurée : {{ $schedule['full_frequency'] }}.
+                            </p>
+                        @endif
                     </div>
                 </div>
             </div>

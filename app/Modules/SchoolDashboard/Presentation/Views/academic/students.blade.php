@@ -103,36 +103,40 @@
     
     <!-- Table Section -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100">
+        <form method="GET" action="{{ route('school.academic.students') }}" class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100">
             <div class="relative w-full md:w-80">
                 <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input type="text" placeholder="Rechercher par nom ou ID..." class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14px] rounded-lg pl-9 pr-3 py-2 outline-none focus:border-[#2F5F76] transition">
+                <input type="text" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Rechercher par nom ou ID..." class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14px] rounded-lg pl-9 pr-3 py-2 outline-none focus:border-[#2F5F76] transition">
             </div>
-            
+
             <div class="flex items-center gap-3 w-full md:w-auto overflow-x-auto">
                 <div class="relative min-w-[140px]">
-                    <select class="w-full appearance-none bg-white border border-slate-200 text-slate-700 text-[13px] font-medium rounded-lg px-4 py-2 pr-8 outline-none focus:border-[#2F5F76]">
-                        <option>Classe (Toutes)</option>
+                    <select name="academic_class_id" onchange="this.form.submit()" class="w-full appearance-none bg-white border border-slate-200 text-slate-700 text-[13px] font-medium rounded-lg px-4 py-2 pr-8 outline-none focus:border-[#2F5F76]">
+                        <option value="">Classe (Toutes)</option>
+                        @foreach($classes as $class)
+                            <option value="{{ $class->id }}" {{ (string) ($filters['academic_class_id'] ?? '') === (string) $class->id ? 'selected' : '' }}>{{ $class->name }}</option>
+                        @endforeach
                     </select>
                     <i class="ph-bold ph-caret-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[12px]"></i>
                 </div>
                 <div class="relative min-w-[140px]">
-                    <select class="w-full appearance-none bg-white border border-slate-200 text-slate-700 text-[13px] font-medium rounded-lg px-4 py-2 pr-8 outline-none focus:border-[#2F5F76]">
-                        <option>Section (Toutes)</option>
+                    <select name="status" onchange="this.form.submit()" class="w-full appearance-none bg-white border border-slate-200 text-slate-700 text-[13px] font-medium rounded-lg px-4 py-2 pr-8 outline-none focus:border-[#2F5F76]">
+                        <option value="">Statut (Tous)</option>
+                        <option value="active" {{ ($filters['status'] ?? '') === 'active' ? 'selected' : '' }}>Actif</option>
+                        <option value="inactive" {{ ($filters['status'] ?? '') === 'inactive' ? 'selected' : '' }}>Inactif</option>
                     </select>
                     <i class="ph-bold ph-caret-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[12px]"></i>
                 </div>
-                <div class="relative min-w-[140px]">
-                    <select class="w-full appearance-none bg-white border border-slate-200 text-slate-700 text-[13px] font-medium rounded-lg px-4 py-2 pr-8 outline-none focus:border-[#2F5F76]">
-                        <option>Statut (Tous)</option>
-                    </select>
-                    <i class="ph-bold ph-caret-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[12px]"></i>
-                </div>
-                <button class="bg-[#EEF2F6] hover:bg-[#E3E8EF] text-slate-600 px-3 py-2 rounded-lg transition flex items-center justify-center flex-shrink-0">
+                <button type="submit" class="bg-[#EEF2F6] hover:bg-[#E3E8EF] text-slate-600 px-3 py-2 rounded-lg transition flex items-center justify-center flex-shrink-0">
                     <i class="ph-bold ph-funnel-simple text-[16px]"></i>
                 </button>
+                @if(!empty($filters['search']) || !empty($filters['academic_class_id']) || !empty($filters['status']))
+                <a href="{{ route('school.academic.students') }}" class="text-slate-400 hover:text-red-600 px-2 py-2 rounded-lg transition flex items-center justify-center flex-shrink-0" title="Réinitialiser les filtres">
+                    <i class="ph-bold ph-x text-[16px]"></i>
+                </a>
+                @endif
             </div>
-        </div>
+        </form>
         
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse whitespace-nowrap">
@@ -193,11 +197,26 @@
                             @endif
                         </td>
                         <td class="px-6 py-4 text-right">
-                            <div class="relative inline-block text-left" x-data="{ open: false, top: 0, left: 0 }">
-                                <button type="button" @click="open = !open; const r = $el.getBoundingClientRect(); top = r.bottom + 6; left = r.right - 224;" class="text-slate-500 hover:text-slate-700 bg-slate-100 p-2 rounded-lg transition">
+                            <div class="relative inline-block text-left" x-data="{ open: false, openUpward: false, edgePx: 0, left: 0 }">
+                                <button type="button" @click="
+                                    open = !open;
+                                    const r = $el.getBoundingClientRect();
+                                    // Menu height varies per row (some items are permission-gated), so we can't
+                                    // know it up front — flipping to anchor via `bottom` instead of `top` when
+                                    // space below is tight lets CSS grow the menu upward on its own, with no
+                                    // need to guess a fixed height (and no risk of it running off-screen).
+                                    openUpward = (window.innerHeight - r.bottom) < 260 && r.top > (window.innerHeight - r.bottom);
+                                    edgePx = Math.max(6, openUpward ? (window.innerHeight - r.top + 6) : (r.bottom + 6));
+                                    left = r.right - 224;
+                                " class="text-slate-500 hover:text-slate-700 bg-slate-100 p-2 rounded-lg transition">
                                     <i class="ph-bold ph-dots-three-vertical text-[18px]"></i>
                                 </button>
-                                <div x-show="open" @click.away="open = false" x-cloak x-transition :style="`position: fixed; top: ${top}px; left: ${left}px;`" class="w-56 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-2" style="display: none;">
+                                <div x-show="open" @click.away="open = false" x-cloak x-transition
+                                     :style="openUpward ? `position: fixed; bottom: ${edgePx}px; left: ${left}px;` : `position: fixed; top: ${edgePx}px; left: ${left}px;`"
+                                     class="w-56 max-h-[70vh] overflow-y-auto bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-2" style="display: none;">
+                                    <a href="{{ route('school.academic.students.show', $student->id) }}" class="flex items-center gap-3 px-4 py-2.5 text-[13.5px] font-semibold text-[#031C5B] hover:bg-slate-50 transition">
+                                        <i class="ph-bold ph-identification-badge text-[18px]"></i> Fiche Élève
+                                    </a>
                                     <form action="{{ route('school.academic.cards.print', 'student') }}" method="POST" target="_blank">
                                         @csrf
                                         <input type="hidden" name="holder_type" value="student">

@@ -78,10 +78,14 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
                     <!-- Année scolaire -->
                     <div class="md:col-span-1">
-                        <label for="academic_year" class="block text-[13px] font-semibold text-slate-700 mb-1.5">Année scolaire <span class="text-slate-400 font-normal">(optionnel)</span></label>
-                        <input type="text" id="academic_year" name="academic_year" value="{{ old('academic_year', $editSemester->academic_year ?? '') }}"
-                            class="w-full bg-[#FAFBFC] border border-slate-200 text-slate-900 text-[14px] font-medium rounded-lg px-4 py-2.5 outline-none focus:border-[#2F5F76] focus:ring-1 focus:ring-[#2F5F76] transition shadow-sm"
-                            placeholder="Ex: 2026-2027">
+                        <label for="academic_year" class="block text-[13px] font-semibold text-slate-700 mb-1.5">Année scolaire</label>
+                        @php $selectedAcademicYear = old('academic_year', $editSemester->academic_year ?? $currentAcademicYear); @endphp
+                        <select id="academic_year" name="academic_year"
+                            class="w-full bg-[#FAFBFC] border border-slate-200 text-slate-900 text-[14px] font-medium rounded-lg px-4 py-2.5 outline-none focus:border-[#2F5F76] focus:ring-1 focus:ring-[#2F5F76] transition shadow-sm cursor-pointer">
+                            @foreach($academicYears as $year)
+                                <option value="{{ $year }}" {{ $selectedAcademicYear === $year ? 'selected' : '' }}>{{ $year }}</option>
+                            @endforeach
+                        </select>
                         <p class="text-[11.5px] text-slate-400 mt-1">Regroupe plusieurs trimestres d'une même année scolaire pour calculer la moyenne annuelle finale.</p>
                     </div>
 

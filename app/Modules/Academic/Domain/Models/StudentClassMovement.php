@@ -3,9 +3,11 @@
 namespace App\Modules\Academic\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class StudentClassMovement extends Model
 {
+    use BelongsToSchool;
     protected $table = 'student_class_movements';
 
     const TYPE_TRANSFER = 'transfer';

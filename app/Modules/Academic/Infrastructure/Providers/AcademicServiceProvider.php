@@ -37,6 +37,9 @@ use App\Modules\Academic\Infrastructure\Repositories\EloquentTeacherRepository;
 use App\Modules\Academic\Domain\Repositories\StaffRepositoryInterface;
 use App\Modules\Academic\Infrastructure\Repositories\EloquentStaffRepository;
 
+use App\Modules\Academic\Domain\Repositories\TimetableBreakRepositoryInterface;
+use App\Modules\Academic\Infrastructure\Repositories\EloquentTimetableBreakRepository;
+
 class AcademicServiceProvider extends ServiceProvider
 {
     /**
@@ -59,6 +62,7 @@ class AcademicServiceProvider extends ServiceProvider
         $this->app->bind(\App\Modules\Academic\Domain\Repositories\RoomRepositoryInterface::class, \App\Modules\Academic\Infrastructure\Repositories\RoomRepository::class);
         $this->app->bind(\App\Modules\Academic\Domain\Repositories\StudentClassMovementRepositoryInterface::class, \App\Modules\Academic\Infrastructure\Repositories\EloquentStudentClassMovementRepository::class);
         $this->app->bind(\App\Modules\Academic\Domain\Repositories\BranchRepositoryInterface::class, \App\Modules\Academic\Infrastructure\Repositories\EloquentBranchRepository::class);
+        $this->app->bind(TimetableBreakRepositoryInterface::class, EloquentTimetableBreakRepository::class);
     }
 
     /**

@@ -3,9 +3,11 @@
 namespace App\Modules\Cards\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class CardTemplate extends Model
 {
+    use BelongsToSchool;
     protected $table = 'card_templates';
 
     public const TYPES = [

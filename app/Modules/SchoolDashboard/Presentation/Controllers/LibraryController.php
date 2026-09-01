@@ -53,7 +53,24 @@ class LibraryController extends Controller
         $categories = $categoryRepository->all();
         $view = $request->get('view', 'list');
 
-        return view('SchoolDashboard::library.catalog', compact('books', 'categories', 'filters', 'view'));
+        // Real most-borrowed title (30 days) + real out-of-stock count —
+        // replaces a generic "la demande peut fluctuer..." line with nothing
+        // behind it.
+        $schoolId = auth()->user()->school_id;
+        $topBookId = \App\Modules\Library\Domain\Models\Loan::where('school_id', $schoolId)
+            ->where('borrowed_at', '>=', now()->subDays(30))
+            ->select('book_id', \Illuminate\Support\Facades\DB::raw('count(*) as c'))
+            ->groupBy('book_id')
+            ->orderByDesc('c')
+            ->first();
+        $topBook = $topBookId ? \App\Modules\Library\Domain\Models\Book::find($topBookId->book_id) : null;
+        $outOfStockCount = \App\Modules\Library\Domain\Models\Book::where('school_id', $schoolId)
+            ->where('quantity_available', '<=', 0)
+            ->count();
+
+        return view('SchoolDashboard::library.catalog', compact(
+            'books', 'categories', 'filters', 'view', 'topBook', 'outOfStockCount'
+        ));
     }
 
     public function storeBook(Request $request, CreateBookUseCase $useCase)

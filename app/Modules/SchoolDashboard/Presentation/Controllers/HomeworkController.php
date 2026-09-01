@@ -7,6 +7,7 @@ use App\Modules\Academic\Domain\Models\AcademicClass;
 use App\Modules\Academic\Domain\Models\Room;
 use App\Modules\Academic\Domain\Models\Student;
 use App\Modules\Bulletin\Application\Services\BulletinStatsService;
+use App\Modules\Bulletin\Domain\Repositories\BulletinEvaluationTypeRepositoryInterface;
 use App\Modules\Homework\Application\DTOs\CreateHomeworkAssignmentDTO;
 use App\Modules\Homework\Application\Services\HomeworkStatsService;
 use App\Modules\Homework\Application\UseCases\CreateHomeworkAssignmentUseCase;
@@ -45,7 +46,7 @@ class HomeworkController extends Controller
         ));
     }
 
-    public function homeworkCreate()
+    public function homeworkCreate(BulletinEvaluationTypeRepositoryInterface $evaluationTypeRepository)
     {
         $teacher = auth()->user()->teacher;
         abort_unless($teacher, 403);
@@ -53,41 +54,54 @@ class HomeworkController extends Controller
         $classes = $teacher->classes;
         $subjects = $teacher->subjects;
 
-        return view('SchoolDashboard::homework.homework_create', compact('classes', 'subjects'));
+        // Only types linked to devoirs maison are relevant here
+        $evaluationTypes = $evaluationTypeRepository->all()
+            ->filter(fn ($t) => $t->linked_homework_type === 'devoir_maison')
+            ->values();
+
+        return view('SchoolDashboard::homework.homework_create', compact('classes', 'subjects', 'evaluationTypes'));
     }
 
-    public function storeHomework(Request $request, CreateHomeworkAssignmentUseCase $useCase, BulletinStatsService $bulletinStats)
+    public function storeHomework(Request $request, CreateHomeworkAssignmentUseCase $useCase, BulletinStatsService $bulletinStats, BulletinEvaluationTypeRepositoryInterface $evaluationTypeRepository)
     {
         $teacher = auth()->user()->teacher;
         abort_unless($teacher, 403);
 
         $data = $request->validate([
-            'academic_class_id' => ['required', 'exists:academic_classes,id'],
-            'subject_id' => ['required', 'exists:subjects,id'],
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:2000'],
-            'scheduled_at' => ['required', 'date'],
-            'max_score' => ['required', 'numeric', 'min:1', 'max:1000'],
+            'academic_class_id'  => ['required', 'exists:academic_classes,id'],
+            'subject_id'         => ['required', 'exists:subjects,id'],
+            'evaluation_type_id' => ['nullable', 'exists:bulletin_evaluation_types,id'],
+            'title'              => ['required', 'string', 'max:255'],
+            'description'        => ['nullable', 'string', 'max:2000'],
+            'scheduled_at'       => ['required', 'date'],
+            'max_score'          => ['required', 'numeric', 'min:1', 'max:1000'],
         ]);
 
         abort_if(!$teacher->teachesSubject((int) $data['subject_id']), 403, "Vous ne pouvez créer un devoir que pour vos propres matières.");
         abort_if(!$teacher->classes->contains('id', (int) $data['academic_class_id']), 403, "Cette classe ne vous est pas assignée.");
 
+        // Validate the evaluation type belongs to devoir_maison
+        if (!empty($data['evaluation_type_id'])) {
+            $evalType = $evaluationTypeRepository->find($data['evaluation_type_id']);
+            abort_unless($evalType && $evalType->linked_homework_type === 'devoir_maison', 422, "Type d'évaluation invalide pour un devoir maison.");
+        }
+
         $semester = $bulletinStats->currentSemester(auth()->user()->school_id);
         abort_unless($semester, 422, 'Aucun semestre actif défini pour cette école.');
 
         $useCase->execute(new CreateHomeworkAssignmentDTO([
-            'school_id' => auth()->user()->school_id,
-            'branch_id' => auth()->user()->activeBranchId(),
-            'academic_class_id' => $data['academic_class_id'],
-            'subject_id' => $data['subject_id'],
-            'teacher_id' => $teacher->id,
-            'semester_id' => $semester->id,
-            'title' => $data['title'],
-            'type' => HomeworkAssignment::TYPE_HOMEWORK,
-            'description' => $data['description'] ?? null,
-            'scheduled_at' => $data['scheduled_at'],
-            'max_score' => $data['max_score'],
+            'school_id'          => auth()->user()->school_id,
+            'branch_id'          => auth()->user()->activeBranchId(),
+            'academic_class_id'  => $data['academic_class_id'],
+            'subject_id'         => $data['subject_id'],
+            'teacher_id'         => $teacher->id,
+            'semester_id'        => $semester->id,
+            'evaluation_type_id' => $data['evaluation_type_id'] ?? null,
+            'title'              => $data['title'],
+            'type'               => HomeworkAssignment::TYPE_HOMEWORK,
+            'description'        => $data['description'] ?? null,
+            'scheduled_at'       => $data['scheduled_at'],
+            'max_score'          => $data['max_score'],
         ]));
 
         return redirect()->route('school.academic.homework.homework')->with('success', 'Devoir créé avec succès !');
@@ -107,7 +121,7 @@ class HomeworkController extends Controller
         return view('SchoolDashboard::homework.tests_index', compact('assignments', 'upcomingWeek', 'toCorrect'));
     }
 
-    public function testsCreate()
+    public function testsCreate(BulletinEvaluationTypeRepositoryInterface $evaluationTypeRepository)
     {
         $teacher = auth()->user()->teacher;
         abort_unless($teacher, 403);
@@ -116,23 +130,29 @@ class HomeworkController extends Controller
         $subjects = $teacher->subjects;
         $rooms = Room::where('school_id', auth()->user()->school_id)->orderBy('name')->get();
 
-        return view('SchoolDashboard::homework.tests_create', compact('classes', 'subjects', 'rooms'));
+        // Only types linked to interrogations are relevant when creating a test
+        $evaluationTypes = $evaluationTypeRepository->all()
+            ->filter(fn ($t) => $t->linked_homework_type === 'interrogation')
+            ->values();
+
+        return view('SchoolDashboard::homework.tests_create', compact('classes', 'subjects', 'rooms', 'evaluationTypes'));
     }
 
-    public function storeTest(Request $request, CreateHomeworkAssignmentUseCase $useCase, BulletinStatsService $bulletinStats)
+    public function storeTest(Request $request, CreateHomeworkAssignmentUseCase $useCase, BulletinStatsService $bulletinStats, BulletinEvaluationTypeRepositoryInterface $evaluationTypeRepository)
     {
         $teacher = auth()->user()->teacher;
         abort_unless($teacher, 403);
 
         $data = $request->validate([
-            'academic_class_id' => ['required', 'exists:academic_classes,id'],
-            'subject_id' => ['required', 'exists:subjects,id'],
-            'room_id' => ['nullable', 'exists:rooms,id'],
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:2000'],
-            'scheduled_at' => ['required', 'date'],
-            'duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],
-            'max_score' => ['required', 'numeric', 'min:1', 'max:1000'],
+            'academic_class_id'  => ['required', 'exists:academic_classes,id'],
+            'subject_id'         => ['required', 'exists:subjects,id'],
+            'room_id'            => ['nullable', 'exists:rooms,id'],
+            'evaluation_type_id' => ['nullable', 'exists:bulletin_evaluation_types,id'],
+            'title'              => ['required', 'string', 'max:255'],
+            'description'        => ['nullable', 'string', 'max:2000'],
+            'scheduled_at'       => ['required', 'date'],
+            'duration_minutes'   => ['required', 'integer', 'min:5', 'max:480'],
+            'max_score'          => ['required', 'numeric', 'min:1', 'max:1000'],
         ]);
 
         abort_if(!$teacher->teachesSubject((int) $data['subject_id']), 403, "Vous ne pouvez planifier une évaluation que pour vos propres matières.");
@@ -141,20 +161,27 @@ class HomeworkController extends Controller
         $semester = $bulletinStats->currentSemester(auth()->user()->school_id);
         abort_unless($semester, 422, 'Aucun semestre actif défini pour cette école.');
 
+        // Verify the evaluation type belongs to this school and is of type interrogation
+        if (!empty($data['evaluation_type_id'])) {
+            $evalType = $evaluationTypeRepository->find($data['evaluation_type_id']);
+            abort_unless($evalType && $evalType->linked_homework_type === 'interrogation', 422, "Type d'évaluation invalide pour une interrogation.");
+        }
+
         $useCase->execute(new CreateHomeworkAssignmentDTO([
-            'school_id' => auth()->user()->school_id,
-            'branch_id' => auth()->user()->activeBranchId(),
-            'academic_class_id' => $data['academic_class_id'],
-            'subject_id' => $data['subject_id'],
-            'teacher_id' => $teacher->id,
-            'semester_id' => $semester->id,
-            'room_id' => $data['room_id'] ?? null,
-            'title' => $data['title'],
-            'type' => HomeworkAssignment::TYPE_TEST,
-            'description' => $data['description'] ?? null,
-            'scheduled_at' => $data['scheduled_at'],
-            'duration_minutes' => $data['duration_minutes'],
-            'max_score' => $data['max_score'],
+            'school_id'          => auth()->user()->school_id,
+            'branch_id'          => auth()->user()->activeBranchId(),
+            'academic_class_id'  => $data['academic_class_id'],
+            'subject_id'         => $data['subject_id'],
+            'teacher_id'         => $teacher->id,
+            'semester_id'        => $semester->id,
+            'evaluation_type_id' => $data['evaluation_type_id'] ?? null,
+            'room_id'            => $data['room_id'] ?? null,
+            'title'              => $data['title'],
+            'type'               => HomeworkAssignment::TYPE_TEST,
+            'description'        => $data['description'] ?? null,
+            'scheduled_at'       => $data['scheduled_at'],
+            'duration_minutes'   => $data['duration_minutes'],
+            'max_score'          => $data['max_score'],
         ]));
 
         return redirect()->route('school.academic.homework.tests')->with('success', 'Évaluation planifiée avec succès !');
@@ -265,6 +292,29 @@ class HomeworkController extends Controller
         $assignment = $this->resolveOwnedAssignment($homework);
 
         return response()->json($stats->liveAttendanceCounts($assignment));
+    }
+
+    public function destroy(int $homework)
+    {
+        $assignment = $this->resolveOwnedAssignment($homework);
+
+        // Refuse de supprimer une session en cours
+        abort_if(
+            $assignment->liveStatus() === HomeworkAssignment::LIVE_IN_PROGRESS,
+            422,
+            'Impossible de supprimer une évaluation en cours de session.'
+        );
+
+        // Supprime les présences et copies liées, puis l'assignment
+        $assignment->attendances()->delete();
+        $assignment->submissions()->delete();
+        $assignment->delete();
+
+        $backRoute = $assignment->type === HomeworkAssignment::TYPE_TEST
+            ? 'school.academic.homework.tests'
+            : 'school.academic.homework.homework';
+
+        return redirect()->route($backRoute)->with('success', 'Évaluation supprimée avec succès.');
     }
 
     private function resolveOwnedAssignment(int $id): HomeworkAssignment

@@ -4,10 +4,12 @@ namespace App\Modules\Transport\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Sanctum\HasApiTokens;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Driver extends Model
 {
-    use SoftDeletes;
+    use HasApiTokens, SoftDeletes, BelongsToSchool;
 
     protected $table = 'transport_drivers';
 
@@ -15,6 +17,7 @@ class Driver extends Model
         'school_id',
         'first_name',
         'last_name',
+        'phone',
         'password',
         'id_card_front',
         'id_card_back',
@@ -22,6 +25,7 @@ class Driver extends Model
         'license_back',
         'has_assistant',
         'assistant_name',
+        'assistant_phone',
         'assistant_id_card_front',
         'assistant_id_card_back',
     ];

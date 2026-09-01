@@ -203,7 +203,7 @@
                     <label class="block text-[13px] font-bold text-slate-700">Médicament</label>
                     <select name="medication_id" required class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14px] rounded-lg px-4 py-2.5 outline-none focus:border-[#031C5B]">
                         <option value="">Sélectionner...</option>
-                        @foreach($medications as $medication)
+                        @foreach($allMedications as $medication)
                             <option value="{{ $medication->id }}">{{ $medication->name }}</option>
                         @endforeach
                     </select>

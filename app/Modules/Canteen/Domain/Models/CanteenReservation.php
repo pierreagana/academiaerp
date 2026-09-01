@@ -4,9 +4,11 @@ namespace App\Modules\Canteen\Domain\Models;
 
 use App\Modules\Academic\Domain\Models\Student;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class CanteenReservation extends Model
 {
+    use BelongsToSchool;
     protected $table = 'canteen_reservations';
 
     /** Mirrors the real slot values used by the School Dashboard's menu planner. */

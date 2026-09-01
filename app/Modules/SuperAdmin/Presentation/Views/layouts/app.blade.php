@@ -25,6 +25,10 @@
         .border-primary-dynamic { border-color: var(--primary-color) !important; }
         .ring-primary-dynamic { --tw-ring-color: var(--primary-color) !important; }
     </style>
+
+    @include('SchoolDashboard::components.searchable-select')
+
+    @stack('styles')
 </head>
 <body class="text-slate-800 flex h-screen overflow-hidden">
 

@@ -4,6 +4,8 @@ namespace App\Modules\SuperAdmin\Presentation\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\SuperAdmin\Application\UseCases\ListInvoicesUseCase;
+use App\Modules\SuperAdmin\Application\Services\AIService;
+use App\Modules\SuperAdmin\Domain\Models\Invoice;
 use Illuminate\Http\Request;
 
 class InvoiceController extends Controller
@@ -11,6 +13,57 @@ class InvoiceController extends Controller
     public function __construct(
         private ListInvoicesUseCase $listInvoicesUseCase
     ) {}
+
+    /**
+     * Real recovery stats from the invoices table, narrated by AI — replaces
+     * the hardcoded "L'assistant IA recommande d'envoyer un rappel..." text
+     * that had no data behind it at all.
+     */
+    public function aiRecoveryAnalysis(AIService $aiService)
+    {
+        $today = now()->startOfDay();
+
+        $paidTotal = Invoice::where('status', 'paid')->sum('amount');
+        $pendingTotal = Invoice::whereIn('status', ['pending', 'failed', 'overdue'])->sum('amount');
+
+        $overdueInvoices = Invoice::where('status', '!=', 'paid')->where('due_date', '<', $today)->get();
+        $overdueCount = $overdueInvoices->count();
+        $overdueAmount = $overdueInvoices->sum('amount');
+
+        $topOverdueSchools = $overdueInvoices
+            ->groupBy('school_name')
+            ->map(fn ($invs, $name) => ['school' => $name, 'amount' => $invs->sum('amount')])
+            ->sortByDesc('amount')
+            ->take(3)
+            ->values();
+
+        $recoveryRate = ($paidTotal + $pendingTotal) > 0
+            ? round(($paidTotal / ($paidTotal + $pendingTotal)) * 100)
+            : null;
+
+        $stats = [
+            'total_encaisse' => (float) $paidTotal,
+            'total_en_attente' => (float) $pendingTotal,
+            'taux_recouvrement_pct' => $recoveryRate,
+            'factures_en_retard' => $overdueCount,
+            'montant_en_retard' => (float) $overdueAmount,
+            'ecoles_les_plus_en_retard' => $topOverdueSchools->toArray(),
+        ];
+
+        $systemPrompt = "Tu es un analyste financier pour AcademiaERP, un SaaS de gestion scolaire facturant des écoles clientes. Tu résumes des statistiques réelles de recouvrement en français, de façon factuelle et actionnable.";
+        $userPrompt = "Voici les statistiques réelles de facturation (données SQL, pas d'invention) :\n"
+            . json_encode($stats, JSON_UNESCAPED_UNICODE)
+            . "\n\nRédige une recommandation courte (2 à 4 phrases) en français : évalue la situation, et si des écoles sont en retard, recommande une action concrète (ex: relance). Si tout est à jour, dis-le simplement sans inventer de problème.";
+
+        $result = $aiService->generateText($systemPrompt, $userPrompt, 250);
+
+        return response()->json([
+            'success' => $result['success'],
+            'recommendation' => $result['text'],
+            'error' => $result['error'],
+            'stats' => $stats,
+        ]);
+    }
 
     public function index()
     {
@@ -40,6 +93,7 @@ class InvoiceController extends Controller
         $invoice->invoice_number = $invNumber;
         $invoice->school_id = $validated['school_id'];
         $invoice->school_name = $school?->name ?? 'Établissement Partner';
+        $invoice->plan_name = $school?->plan_name;
         $invoice->amount = $validated['amount'];
         $invoice->due_date = $validated['due_date'];
         $invoice->issue_date = date('Y-m-d');

@@ -5,6 +5,7 @@ namespace App\Modules\SchoolDashboard\Application\Services;
 use App\Modules\Academic\Domain\Models\Teacher;
 use App\Modules\Academic\Domain\Models\Timetable;
 use App\Modules\Presence\Domain\Models\AccessLog;
+use App\Modules\Presence\Domain\Models\TeacherSessionCheckin;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -43,6 +44,9 @@ class TeacherAttendanceHistoryService
                     'duration_minutes' => null,
                     'late_minutes' => 0,
                     'expected_start' => $expectedStart,
+                    'sessions' => collect(),
+                    'sessions_scheduled' => 0,
+                    'sessions_checked_in' => 0,
                 ];
                 continue;
             }
@@ -57,6 +61,8 @@ class TeacherAttendanceHistoryService
             $exit = $dayLogs->where('action', AccessLog::ACTION_EXIT)->last();
 
             if (!$entry) {
+                $absentSessions = $this->sessionsFor($teacher, $date);
+
                 $rows[$date->toDateString()] = [
                     'status' => 'absent',
                     'arrival' => null,
@@ -64,27 +70,92 @@ class TeacherAttendanceHistoryService
                     'duration_minutes' => null,
                     'late_minutes' => 0,
                     'expected_start' => $expectedStart,
+                    'sessions' => $absentSessions,
+                    'sessions_scheduled' => $absentSessions->count(),
+                    'sessions_checked_in' => $absentSessions->filter(fn ($s) => $s['checked_in'])->count(),
                 ];
                 continue;
             }
 
             $arrival = $entry->occurred_at;
             $expectedAt = $date->copy()->setTimeFromTimeString($expectedStart)->addMinutes(self::GRACE_MINUTES);
-            $lateMinutes = $arrival->gt($expectedAt) ? $expectedAt->diffInMinutes($arrival) : 0;
+            // Cast: Carbon 3's diffInMinutes() returns an unrounded float, but this is
+            // displayed directly ("Retard (Xm)") and declared as an int everywhere else.
+            $lateMinutes = $arrival->gt($expectedAt) ? (int) round($expectedAt->diffInMinutes($arrival)) : 0;
 
             $departure = $exit && $exit->occurred_at->gt($arrival) ? $exit->occurred_at : null;
+
+            $sessions = $this->sessionsFor($teacher, $date);
 
             $rows[$date->toDateString()] = [
                 'status' => $lateMinutes > 0 ? 'late' : 'present',
                 'arrival' => $arrival,
                 'departure' => $departure,
-                'duration_minutes' => $departure ? $arrival->diffInMinutes($departure) : null,
+                // Cast: Carbon 3's diffInMinutes() returns an unrounded float, but this column
+                // is declared as ?int and fed straight into intdiv() by its callers.
+                'duration_minutes' => $departure ? (int) round($arrival->diffInMinutes($departure)) : null,
                 'late_minutes' => $lateMinutes,
                 'expected_start' => $expectedStart,
+                'sessions' => $sessions,
+                'sessions_scheduled' => $sessions->count(),
+                'sessions_checked_in' => $sessions->filter(fn ($s) => $s['checked_in'])->count(),
             ];
         }
 
         return collect($rows);
+    }
+
+    /**
+     * Real per-course-session pointage for one day ("présence au cours",
+     * distinct from the school-wide badge-in above) — every published
+     * Timetable slot this teacher has that weekday, matched against any
+     * TeacherSessionCheckin recorded for that exact date+slot. Deduplicated
+     * by (day_of_week, start_time) keeping the newest valid_from at or before
+     * $date, same versioning rule used for the timetable everywhere else in
+     * this codebase — otherwise a stale re-versioned slot would double-count.
+     */
+    private function sessionsFor(Teacher $teacher, Carbon $date): Collection
+    {
+        $dayName = self::DAY_NAMES[$date->dayOfWeekIso] ?? null;
+        if (!$dayName) {
+            return collect();
+        }
+
+        $slots = Timetable::where('teacher_id', $teacher->id)
+            ->where('day_of_week', $dayName)
+            ->where('status', 'published')
+            ->where('valid_from', '<=', $date->toDateString())
+            ->with(['subject', 'academicClass'])
+            ->orderBy('start_time')
+            ->get();
+
+        $checkins = TeacherSessionCheckin::where('teacher_id', $teacher->id)
+            ->where('date', $date->toDateString())
+            ->get()
+            ->keyBy('timetable_id');
+
+        // Same dedup rule as TeacherDashboardService::todaysCourses(): keep whichever
+        // re-versioned Timetable row the teacher actually checked into that day, if
+        // any, so a check-in recorded against a since-superseded slot still counts —
+        // otherwise blindly keeping only the newest valid_from would silently drop a
+        // real check-in the teacher already made.
+        $slots = $slots->groupBy('start_time')
+            ->map(fn ($group) => $group->first(fn ($slot) => $checkins->has($slot->id)) ?? $group->sortByDesc('valid_from')->first())
+            ->values();
+
+        return $slots->map(function ($slot) use ($checkins) {
+            $checkin = $checkins->get($slot->id);
+
+            return [
+                'timetable_id' => $slot->id,
+                'subject' => $slot->subject?->name,
+                'class' => $slot->academicClass?->name,
+                'start_time' => $slot->start_time,
+                'checked_in' => (bool) $checkin,
+                'checked_in_at' => $checkin?->checked_in_at,
+                'late_minutes' => $checkin?->late_minutes ?? 0,
+            ];
+        })->values();
     }
 
     /** Real monthly aggregates. No leave-balance field — no such concept exists in this schema. */
@@ -98,6 +169,9 @@ class TeacherAttendanceHistoryService
         $lateRows = $applicable->where('status', 'late');
         $absentCount = $applicable->where('status', 'absent')->count();
 
+        $sessionsScheduled = (int) $applicable->sum('sessions_scheduled');
+        $sessionsCheckedIn = (int) $applicable->sum('sessions_checked_in');
+
         return [
             'punctuality_rate' => $daysScheduled > 0 ? round($presentCount / $daysScheduled * 100) : null,
             'days_worked' => $presentCount + $lateRows->count(),
@@ -105,6 +179,9 @@ class TeacherAttendanceHistoryService
             'late_count' => $lateRows->count(),
             'late_minutes_total' => (int) $lateRows->sum('late_minutes'),
             'absent_count' => $absentCount,
+            'sessions_scheduled' => $sessionsScheduled,
+            'sessions_checked_in' => $sessionsCheckedIn,
+            'sessions_rate' => $sessionsScheduled > 0 ? round($sessionsCheckedIn / $sessionsScheduled * 100) : null,
         ];
     }
 

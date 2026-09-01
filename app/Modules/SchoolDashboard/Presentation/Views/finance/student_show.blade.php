@@ -74,7 +74,12 @@
             @if($summary['total'] > 0)
             <div class="mt-5 pt-4 border-t border-white/10 flex items-center justify-between text-[12px]">
                 <span class="text-white/70">Sur un total annuel de {{ number_format($summary['total'], 0, ',', ' ') }} FCFA</span>
-                <span class="px-2 py-1 bg-white/10 rounded font-bold">{{ $summary['total'] > 0 ? round(($summary['paid'] / $summary['total']) * 100) : 0 }}% Payé</span>
+                <span class="px-2 py-1 bg-white/10 rounded font-bold">{{ round((($summary['paid'] + $summary['scholarshipCredit']) / $summary['total']) * 100) }}% Couvert</span>
+            </div>
+            @endif
+            @if(($summary['scholarshipCredit'] ?? 0) > 0)
+            <div class="mt-2 flex items-center gap-1.5 text-[12px] text-emerald-300 font-semibold">
+                <i class="ph-fill ph-medal"></i> Dont {{ number_format($summary['scholarshipCredit'], 0, ',', ' ') }} FCFA couverts par bourse
             </div>
             @endif
         </div>

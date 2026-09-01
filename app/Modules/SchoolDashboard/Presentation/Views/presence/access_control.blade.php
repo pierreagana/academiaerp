@@ -7,10 +7,16 @@
             <h1 class="text-[26px] font-bold text-[#0F172A] tracking-tight">Contrôle d'Accès</h1>
             <p class="text-[14px] text-slate-500 mt-1">Journal réel des entrées et sorties, basé sur les passages enregistrés.</p>
         </div>
-        <a href="{{ route('school.academic.presence.access.export') }}" class="bg-[#031C5B] hover:bg-[#031C5B]/90 text-white font-bold text-[13px] px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2">
-            <i class="ph-bold ph-download-simple"></i>
-            Générer rapport
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('school.academic.presence.access.devices') }}" class="bg-white hover:bg-slate-50 text-[#031C5B] font-bold text-[13px] px-5 py-2.5 rounded-xl shadow-sm border border-slate-200 transition flex items-center gap-2">
+                <i class="ph-bold ph-device-mobile-camera"></i>
+                Appareils de Scan
+            </a>
+            <a href="{{ route('school.academic.presence.access.export') }}" class="bg-[#031C5B] hover:bg-[#031C5B]/90 text-white font-bold text-[13px] px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2">
+                <i class="ph-bold ph-download-simple"></i>
+                Générer rapport
+            </a>
+        </div>
     </div>
 
     @if(session('success'))

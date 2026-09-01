@@ -80,4 +80,19 @@ class EloquentRouteStopRepository implements RouteStopRepositoryInterface
         $stop = $this->find($stopId);
         $stop->students()->detach($studentId);
     }
+
+    /**
+     * Unlike detachStudent(), only removes the pivot row for this one period — a
+     * student assigned to both morning and evening on the same stop keeps the
+     * other period's row intact. belongsToMany::detach() ignores wherePivot()
+     * constraints, so this goes at the pivot table directly.
+     */
+    public function detachStudentForPeriod($stopId, $studentId, string $period)
+    {
+        \Illuminate\Support\Facades\DB::table('transport_route_stop_student')
+            ->where('route_stop_id', $stopId)
+            ->where('student_id', $studentId)
+            ->where('period', $period)
+            ->delete();
+    }
 }

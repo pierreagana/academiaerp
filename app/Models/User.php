@@ -78,6 +78,26 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class, 'role_id');
     }
 
+    /** School groups this user founded — each with its own school portfolio. A person can found more than one group. */
+    public function foundedGroups()
+    {
+        return $this->hasMany(\App\Modules\SuperAdmin\Domain\Models\SchoolGroup::class, 'founder_user_id');
+    }
+
+    public function isFounder(): bool
+    {
+        return $this->foundedGroups()->exists();
+    }
+
+    /** Every school across every group this user founded — the real cross-school portfolio, not just their own school_id. */
+    public function foundedSchools()
+    {
+        return \App\Modules\SuperAdmin\Domain\Models\School::whereIn(
+            'school_group_id',
+            $this->foundedGroups()->pluck('id')
+        );
+    }
+
     public function teacher()
     {
         return $this->belongsTo(Teacher::class);
@@ -165,6 +185,7 @@ class User extends Authenticatable
         'academic.parents.manage'      => 'Étudiants & Tuteurs',
         'academic.teachers.manage'     => 'Enseignants & Personnel',
         'academic.personnel.manage'    => 'Enseignants & Personnel',
+        'academic.awards.manage'       => 'Académie de Base',
         'academic.presence.manage'     => "Présence & Contrôle d'Accès",
         'finance.fees.manage'          => 'Frais Scolaires',
         'finance.scholarships.manage'  => 'Bourses',

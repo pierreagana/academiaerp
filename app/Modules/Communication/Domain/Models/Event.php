@@ -8,10 +8,11 @@ use App\Modules\Academic\Domain\Models\Teacher;
 use App\Modules\SuperAdmin\Domain\Models\School;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Event extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToSchool;
 
     protected $fillable = [
         'school_id',

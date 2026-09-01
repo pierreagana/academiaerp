@@ -60,7 +60,7 @@ class InfirmaryStatsService
             'thisWeek' => $thisWeek,
             'lastWeek' => $lastWeek,
             'percentChange' => $percentChange,
-            'increased' => $thisWeek > $lastWeek && $lastWeek > 0,
+            'increased' => $thisWeek > $lastWeek,
         ];
     }
 

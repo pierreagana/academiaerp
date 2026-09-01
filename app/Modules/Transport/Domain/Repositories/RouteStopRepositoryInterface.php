@@ -21,4 +21,6 @@ interface RouteStopRepositoryInterface
     public function syncStudents($stopId, array $studentIds);
 
     public function detachStudent($stopId, $studentId);
+
+    public function detachStudentForPeriod($stopId, $studentId, string $period);
 }

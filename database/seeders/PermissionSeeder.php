@@ -22,6 +22,7 @@ class PermissionSeeder extends Seeder
             ['slug' => 'academic.parents.manage', 'name' => 'Gestion des tuteurs', 'group' => 'Étudiants'],
             ['slug' => 'academic.teachers.manage', 'name' => 'Gestion des enseignants', 'group' => 'Ressources Humaines'],
             ['slug' => 'academic.personnel.manage', 'name' => 'Gestion du personnel', 'group' => 'Ressources Humaines'],
+            ['slug' => 'academic.awards.manage', 'name' => 'Récompenses & Diplômes', 'group' => 'Vie Scolaire'],
             ['slug' => 'finance.fees.manage', 'name' => 'Gestion des frais de scolarité', 'group' => 'Finances'],
             ['slug' => 'finance.scholarships.manage', 'name' => 'Gestion des bourses', 'group' => 'Finances'],
             ['slug' => 'finance.expenses.manage', 'name' => 'Gestion des dépenses', 'group' => 'Finances'],
@@ -36,6 +37,7 @@ class PermissionSeeder extends Seeder
             ['slug' => 'report-card.manage', 'name' => 'Livret Scolaire & Compétences', 'group' => 'Vie Scolaire'],
             ['slug' => 'academic.bulletins.manage', 'name' => 'Bulletins de Notes', 'group' => 'Académique'],
             ['slug' => 'academic.homework.manage', 'name' => 'Devoirs & Interrogations', 'group' => 'Académique'],
+            ['slug' => 'academic.exam-results.manage', 'name' => 'Résultats aux examens (BAC/BEPC/CEPE/BTS)', 'group' => 'Académique'],
             ['slug' => 'establishment.manage', 'name' => 'Profil de l\'établissement', 'group' => 'Administration'],
         ];
 

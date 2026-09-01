@@ -198,7 +198,7 @@
                 </div>
                 
                 <p class="text-[13px] font-medium text-slate-700 leading-relaxed relative z-10 mb-6 flex-1">
-                    Le comportement du système est normal. Augmentation de 12% des modifications de paramètres par rapport à la semaine dernière, correspondant au début du trimestre.
+                    Cliquez pour générer une analyse en langage naturel des journaux système réels des 7 derniers jours.
                 </p>
 
                 <button type="button" onclick="openAiAuditSummaryModal()" class="w-full flex items-center justify-center gap-2 bg-[#7C3AED] text-white px-5 py-3 rounded-xl text-xs font-bold hover:bg-purple-700 transition shadow-sm relative z-10 cursor-pointer">
@@ -229,19 +229,33 @@
             </div>
 
             <div class="p-6 space-y-4 text-xs">
-                <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-2 text-slate-800">
-                    <div class="flex justify-between border-b border-purple-200/60 pb-2">
-                        <span class="font-medium text-slate-600">Niveau de Sécurité Globale :</span>
-                        <span class="font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">98.5% Optimal</span>
+                <div id="aiAuditLoading" class="text-center py-6 text-slate-500 font-semibold">
+                    <i class="ph ph-spinner-gap animate-spin text-2xl text-[#7C3AED]"></i>
+                    <p class="mt-2">Analyse des journaux réels en cours...</p>
+                </div>
+
+                <div id="aiAuditError" class="hidden bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-4 text-[12.5px]"></div>
+
+                <div id="aiAuditContent" class="hidden space-y-4">
+                    <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-2 text-slate-800">
+                        <div class="flex justify-between border-b border-purple-200/60 pb-2">
+                            <span class="font-medium text-slate-600">Journaux (7 derniers jours) :</span>
+                            <span class="font-bold text-slate-900" id="auditStatThisWeek">—</span>
+                        </div>
+                        <div class="flex justify-between border-b border-purple-200/60 pb-2">
+                            <span class="font-medium text-slate-600">Variation vs semaine précédente :</span>
+                            <span class="font-bold text-slate-900" id="auditStatChange">—</span>
+                        </div>
+                        <div class="flex justify-between border-b border-purple-200/60 pb-2">
+                            <span class="font-medium text-slate-600">Erreurs/Critiques (7j) :</span>
+                            <span class="font-bold text-slate-900" id="auditStatErrors">—</span>
+                        </div>
+                        <div class="flex justify-between pt-1">
+                            <span class="font-medium text-slate-600">Source la plus active :</span>
+                            <span class="font-bold text-slate-900" id="auditStatSource">—</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between border-b border-purple-200/60 pb-2">
-                        <span class="font-medium text-slate-600">Tentatives d'Intrusion Bloquées :</span>
-                        <span class="font-bold text-slate-900">5 requêtes</span>
-                    </div>
-                    <div class="flex justify-between pt-1">
-                        <span class="font-medium text-slate-600">Disponibilité du Service API :</span>
-                        <span class="font-bold text-slate-900">99.98% Uptime</span>
-                    </div>
+                    <p class="text-slate-700 leading-relaxed" id="auditSummaryText"></p>
                 </div>
 
                 <div class="flex justify-end gap-3 pt-2">
@@ -262,7 +276,47 @@
         }
         function openAiAuditSummaryModal() {
             const modal = document.getElementById('aiAuditSummaryModal');
-            if (modal) modal.classList.remove('hidden');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+
+            const loading = document.getElementById('aiAuditLoading');
+            const errorBox = document.getElementById('aiAuditError');
+            const content = document.getElementById('aiAuditContent');
+            loading.classList.remove('hidden');
+            errorBox.classList.add('hidden');
+            content.classList.add('hidden');
+
+            fetch('{{ route("superadmin.system-logs.ai-audit-summary") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                loading.classList.add('hidden');
+
+                document.getElementById('auditStatThisWeek').innerText = data.stats.logs_7_derniers_jours;
+                document.getElementById('auditStatChange').innerText = data.stats.variation_pct === null
+                    ? 'N/A' : (data.stats.variation_pct >= 0 ? '+' : '') + data.stats.variation_pct + '%';
+                document.getElementById('auditStatErrors').innerText = data.stats.erreurs_critiques_7j;
+                document.getElementById('auditStatSource').innerText = data.stats.source_la_plus_active + ' (' + data.stats.occurrences_source_active + ')';
+
+                if (data.success) {
+                    document.getElementById('auditSummaryText').innerText = data.summary;
+                    content.classList.remove('hidden');
+                } else {
+                    errorBox.innerText = data.error || "Échec de la génération du résumé IA.";
+                    errorBox.classList.remove('hidden');
+                    content.classList.remove('hidden');
+                }
+            })
+            .catch(() => {
+                loading.classList.add('hidden');
+                errorBox.innerText = "Erreur de communication avec le serveur.";
+                errorBox.classList.remove('hidden');
+            });
         }
         function closeAiAuditSummaryModal() {
             const modal = document.getElementById('aiAuditSummaryModal');

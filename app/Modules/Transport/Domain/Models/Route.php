@@ -3,9 +3,11 @@
 namespace App\Modules\Transport\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Route extends Model
 {
+    use BelongsToSchool;
     protected $table = 'transport_routes';
 
     public const STATUSES = [
@@ -29,13 +31,21 @@ class Route extends Model
         'sun' => 'Dim',
     ];
 
+    /** Null (absent from this map) means "both periods" — see the period column's own comment. */
+    public const PERIODS = [
+        'morning' => 'Matin',
+        'evening' => 'Soir',
+    ];
+
     protected $fillable = [
         'school_id',
         'name',
         'zone',
+        'price',
         'distance_km',
         'bus_id',
         'status',
+        'period',
         'first_stop_time',
         'stop_interval_minutes',
         'schedule_type',
@@ -43,6 +53,7 @@ class Route extends Model
     ];
 
     protected $casts = [
+        'price' => 'decimal:2',
         'distance_km' => 'decimal:2',
         'recurring_days' => 'array',
     ];

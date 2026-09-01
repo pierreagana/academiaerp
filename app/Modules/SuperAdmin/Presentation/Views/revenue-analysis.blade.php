@@ -323,24 +323,31 @@
             </div>
 
             <div class="p-6 space-y-4 text-xs">
-                <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-2 text-slate-800">
-                    <div class="flex justify-between border-b border-purple-200/60 pb-2">
-                        <span class="font-medium text-slate-600">Projection MRR Trimestre Prochain :</span>
-                        <span class="font-extrabold text-[#7C3AED] text-sm">+24.5%</span>
-                    </div>
-                    <div class="flex justify-between border-b border-purple-200/60 pb-2">
-                        <span class="font-medium text-slate-600">Estimation Revenus Q3/Q4 :</span>
-                        <span class="font-bold text-slate-900">4 850 000 FCFA</span>
-                    </div>
-                    <div class="flex justify-between pt-1">
-                        <span class="font-medium text-slate-600">Confiance de l'Algorithme :</span>
-                        <span class="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">94.2% Précision</span>
-                    </div>
+                <div id="aiForecastLoading" class="text-center py-6 text-slate-500 font-semibold">
+                    <i class="ph ph-spinner-gap animate-spin text-2xl text-[#7C3AED]"></i>
+                    <p class="mt-2">Calcul de la tendance réelle en cours...</p>
                 </div>
 
-                <p class="text-slate-500 text-[11px] leading-relaxed">
-                    Les projections sont calculées d'après les renouvellements de souscription prévus et l'augmentation moyenne du nombre d'élèves par établissement.
-                </p>
+                <div id="aiForecastBody" class="hidden space-y-4">
+                    <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-2 text-slate-800">
+                        <div class="flex justify-between border-b border-purple-200/60 pb-2">
+                            <span class="font-medium text-slate-600">Moyenne mensuelle (3 derniers mois) :</span>
+                            <span class="font-bold text-slate-900" id="forecastAvgMonthly">—</span>
+                        </div>
+                        <div class="flex justify-between border-b border-purple-200/60 pb-2">
+                            <span class="font-medium text-slate-600">Estimation trimestre prochain :</span>
+                            <span class="font-extrabold text-[#7C3AED] text-sm" id="forecastNextQuarter">—</span>
+                        </div>
+                        <div class="flex justify-between pt-1">
+                            <span class="font-medium text-slate-600">Tendance semestre (1re vs 2e moitié) :</span>
+                            <span class="font-bold text-slate-900" id="forecastTrend">—</span>
+                        </div>
+                    </div>
+                    <p class="text-slate-700 leading-relaxed" id="forecastCommentary"></p>
+                    <p class="text-[10px] text-slate-400">Extrapolation simple sur données réelles — pas un modèle prédictif entraîné.</p>
+                </div>
+
+                <div id="aiForecastError" class="hidden bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-4 text-[12.5px]"></div>
 
                 <div class="flex justify-end gap-3 pt-2">
                     <button type="button" onclick="closeAiForecastModal()" class="px-5 py-2.5 rounded-xl bg-[#7C3AED] text-white text-xs font-bold hover:bg-purple-800 transition shadow-sm cursor-pointer">
@@ -365,7 +372,45 @@
         }
         function openAiForecastModal() {
             const modal = document.getElementById('aiForecastModal');
-            if (modal) modal.classList.remove('hidden');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+
+            const loading = document.getElementById('aiForecastLoading');
+            const body = document.getElementById('aiForecastBody');
+            const errorBox = document.getElementById('aiForecastError');
+            loading.classList.remove('hidden');
+            body.classList.add('hidden');
+            errorBox.classList.add('hidden');
+
+            fetch('{{ route("superadmin.revenue-analysis.ai-forecast") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                loading.classList.add('hidden');
+
+                const fmt = n => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
+                document.getElementById('forecastAvgMonthly').innerText = fmt(data.stats.moyenne_mensuelle_3_derniers_mois_fcfa);
+                document.getElementById('forecastNextQuarter').innerText = fmt(data.stats.projection_trimestre_prochain_fcfa);
+                document.getElementById('forecastTrend').innerText = data.stats.tendance_pct_1re_vs_2e_moitie_semestre === null
+                    ? 'N/A' : (data.stats.tendance_pct_1re_vs_2e_moitie_semestre >= 0 ? '+' : '') + data.stats.tendance_pct_1re_vs_2e_moitie_semestre + '%';
+
+                if (data.success) {
+                    document.getElementById('forecastCommentary').innerText = data.commentary;
+                } else {
+                    document.getElementById('forecastCommentary').innerText = data.error || "Commentaire IA indisponible.";
+                }
+                body.classList.remove('hidden');
+            })
+            .catch(() => {
+                loading.classList.add('hidden');
+                errorBox.innerText = "Erreur de communication avec le serveur.";
+                errorBox.classList.remove('hidden');
+            });
         }
         function closeAiForecastModal() {
             const modal = document.getElementById('aiForecastModal');

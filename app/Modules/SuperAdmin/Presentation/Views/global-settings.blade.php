@@ -74,7 +74,13 @@
                         </div>
                         <div>
                             <label class="block font-bold text-[#111827] mb-1.5">Téléphone du Support</label>
-                            <input type="text" name="support_phone" value="{{ $settings['support_phone'] ?? '+221 33 800 00 00' }}" class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-3.5 py-2.5 outline-none focus:border-[#031C5B] focus:bg-white transition">
+                            @php [$supportPhoneCode, $supportPhoneNumber] = \App\Modules\SuperAdmin\Domain\Models\Country::splitPhone($settings['support_phone'] ?? '+225 0102030405'); @endphp
+                            @include('SchoolDashboard::components.phone-input', [
+                                'selectedCode' => $supportPhoneCode,
+                                'selectedNumber' => $supportPhoneNumber,
+                                'selectClass' => 'w-[100px] bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-2 py-2.5 outline-none focus:border-[#031C5B] focus:bg-white transition cursor-pointer',
+                                'inputClass' => 'flex-1 bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-3.5 py-2.5 outline-none focus:border-[#031C5B] focus:bg-white transition',
+                            ])
                         </div>
                     </div>
 
@@ -179,11 +185,14 @@
                     </div>
 
                     <div class="space-y-6 relative z-10 text-xs">
+                        <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 text-[11px] text-indigo-700 font-medium">
+                            Stripe, Razorpay, PayStack et Flutterwave se configurent désormais dans
+                            <a href="{{ route('superadmin.payment-gateways') }}" class="font-bold underline">Passerelles de Paiement</a>.
+                        </div>
                         <!-- OpenAI API Key -->
                         <div>
                             <div class="flex items-center justify-between mb-2">
-                                <label class="font-bold text-[#111827]">Clé API OpenAI / Gemini <span class="text-slate-500 font-medium">(Moteur IA Globale & Tuteur)</span></label>
-                                <span class="inline-flex bg-[#A7F3D0] text-[#065F46] text-[10px] font-bold px-2 py-0.5 rounded-md">Connecté & Valide</span>
+                                <label class="font-bold text-[#111827]">Clé API OpenAI <span class="text-slate-500 font-medium">(GPT-4o-mini)</span></label>
                             </div>
                             <div class="relative">
                                 <i class="ph ph-key absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base"></i>
@@ -192,17 +201,25 @@
                                     <i class="ph ph-eye text-base font-bold"></i>
                                 </button>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Testez la connexion réelle depuis Configuration des Modèles IA.</p>
                         </div>
 
-                        <!-- Stripe Secret Key -->
+                        <!-- Anthropic Claude API Key -->
                         <div>
                             <div class="flex items-center justify-between mb-2">
-                                <label class="font-bold text-[#111827]">Clé Secrète Stripe <span class="text-slate-500 font-medium">(Paiements Internationaux Carte CB)</span></label>
+                                <label class="font-bold text-[#111827]">Clé API Anthropic <span class="text-slate-500 font-medium">(Claude Haiku 4.5)</span></label>
                             </div>
                             <div class="relative">
-                                <i class="ph ph-credit-card absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base"></i>
-                                <input type="password" name="stripe_secret_key" value="{{ $settings['stripe_secret_key'] ?? '' }}" class="w-full bg-white border border-slate-200 text-slate-800 text-sm tracking-wider rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-[#7C3AED] transition shadow-xs font-mono">
+                                <i class="ph ph-key absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base"></i>
+                                <input type="password" name="anthropic_api_key" value="{{ $settings['anthropic_api_key'] ?? '' }}" class="w-full bg-white border border-slate-200 text-slate-800 text-sm tracking-wider rounded-xl pl-10 pr-10 py-2.5 outline-none focus:border-[#7C3AED] transition shadow-xs font-mono">
+                                <button type="button" onclick="togglePasswordVisibility(this)" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7C3AED] hover:text-purple-800 transition cursor-pointer">
+                                    <i class="ph ph-eye text-base font-bold"></i>
+                                </button>
                             </div>
+                            <p class="text-[10px] text-slate-400 mt-1">
+                                Choisissez lequel des deux fournisseurs est actif dans
+                                <a href="{{ route('superadmin.ai-models') }}" class="text-[#7C3AED] hover:underline font-semibold">Configuration des Modèles IA</a>.
+                            </p>
                         </div>
 
                         <!-- Orange Money / Mobile Money -->

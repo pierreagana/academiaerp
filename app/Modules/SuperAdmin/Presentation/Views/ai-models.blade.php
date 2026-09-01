@@ -48,7 +48,7 @@
     <!-- Toast JS Notification -->
     <div id="aiModelsToast" class="hidden mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-3.5 rounded-xl flex items-center justify-between text-sm font-semibold shadow-xs">
         <div class="flex items-center gap-2.5">
-            <i class="ph ph-check-circle text-emerald-600 text-xl font-bold"></i>
+            <i id="aiModelsToastIcon" class="ph ph-check-circle text-emerald-600 text-xl font-bold"></i>
             <span id="aiModelsToastMsg">Action exécutée.</span>
         </div>
         <button onclick="document.getElementById('aiModelsToast').classList.add('hidden')" class="text-emerald-500 hover:text-emerald-800 text-lg font-bold">✕</button>
@@ -85,9 +85,14 @@
                             <span class="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full {{ $badgeBase }}">
                                 {{ $model['status_label'] }}
                             </span>
-                            <button type="button" onclick="showAiModelToast('Modèle {{ addslashes($model['name']) }} sélectionné comme moteur principal.')" class="text-slate-400 hover:text-slate-700 p-0.5 transition cursor-pointer">
-                                <i class="ph ph-dots-three-vertical text-base font-bold"></i>
-                            </button>
+                            @if($model['is_real'] ?? false)
+                                <form action="{{ route('superadmin.ai-models.toggle-status', $model['id']) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="text-[10px] font-bold {{ $isActive ? 'text-slate-400 hover:text-rose-600' : 'text-slate-400 hover:text-emerald-600' }} transition cursor-pointer">
+                                        {{ $isActive ? 'Désactiver' : 'Activer' }}
+                                    </button>
+                                </form>
+                            @endif
                         </div>
 
                         <div>
@@ -96,16 +101,11 @@
                         </div>
 
                         @if(!empty($model['latency']))
-                            <div class="mt-1 flex items-center justify-between">
-                                <div>
-                                    <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">Latence moy.</p>
-                                    <p class="text-sm font-extrabold {{ ($model['color'] ?? 'emerald') === 'emerald' ? 'text-emerald-700' : 'text-violet-700' }}">
-                                        {{ $model['latency'] }}
-                                    </p>
-                                </div>
-                                <button type="button" onclick="testModelLatency('{{ addslashes($model['name']) }}')" class="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer">
-                                    Tester
-                                </button>
+                            <div class="mt-1">
+                                <p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wide">Latence indicative</p>
+                                <p class="text-sm font-extrabold {{ ($model['color'] ?? 'emerald') === 'emerald' ? 'text-emerald-700' : 'text-violet-700' }}">
+                                    {{ $model['latency'] }}
+                                </p>
                             </div>
                         @else
                             <div class="flex items-center justify-between mt-1">
@@ -132,7 +132,7 @@
                         <p class="text-xs text-slate-500 leading-snug mt-0.5">{{ $param['description'] }}</p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
-                        <input type="checkbox" onchange="toggleAiSetting('{{ $param['key'] }}', this.checked, '{{ addslashes($param['label']) }}')" class="sr-only peer" {{ $param['enabled'] ? 'checked' : '' }}>
+                        <input type="checkbox" onchange="toggleAiSetting(this, '{{ $param['key'] }}', this.checked, '{{ addslashes($param['label']) }}')" class="sr-only peer" {{ $param['enabled'] ? 'checked' : '' }}>
                         <div class="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                     </label>
                 </div>
@@ -148,32 +148,58 @@
 
         {{-- Gestion des API Keys --}}
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6">
-            <div class="flex items-center gap-2 mb-5">
-                <i class="ph ph-key text-indigo-600 text-xl font-bold"></i>
-                <h3 class="text-base font-bold text-slate-900">Gestion des API Keys</h3>
+            <div class="flex items-center justify-between mb-5">
+                <div class="flex items-center gap-2">
+                    <i class="ph ph-key text-indigo-600 text-xl font-bold"></i>
+                    <h3 class="text-base font-bold text-slate-900">Fournisseur IA</h3>
+                </div>
+                <a href="{{ route('superadmin.global-settings') }}" class="text-[11px] font-bold text-indigo-600 hover:underline">
+                    Modifier les clés
+                </a>
             </div>
 
-            <div class="space-y-5">
-                @foreach($apiKeys as $key)
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-2">{{ $key['provider'] }}</label>
-                        <div class="flex items-center gap-2">
-                            <div class="flex-1 relative">
-                                <input
-                                    type="password"
-                                    value="{{ $key['key_hint'] }}"
-                                    class="w-full bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-mono px-3 py-2.5 pr-10 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 transition"
-                                    readonly>
-                            </div>
-                            <button type="button" onclick="showAiModelToast('Clé API masquée pour raison de sécurité.')" title="Afficher" class="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600 transition cursor-pointer">
-                                <i class="ph ph-eye text-sm font-bold"></i>
-                            </button>
-                            <button type="button" onclick="showAiModelToast('Clé API testée avec succès (Ping OK : 22ms).')" title="Tester connexion" class="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition cursor-pointer">
-                                <i class="ph ph-arrows-clockwise text-sm font-bold"></i>
-                            </button>
-                        </div>
+            <p class="text-[11px] text-slate-400 mb-4">
+                Choisissez quel fournisseur traite réellement les demandes IA de la plateforme (brouillons de support, résumés, etc.). Les clés se configurent dans Paramètres Globaux.
+            </p>
+
+            <div class="space-y-4">
+                {{-- OpenAI --}}
+                <div class="border {{ $activeProvider === 'openai' ? 'border-indigo-300 bg-indigo-50/40' : 'border-slate-200' }} rounded-xl p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                            <input type="radio" name="aiProviderRadio" value="openai" onchange="selectAiProvider('openai')" {{ $activeProvider === 'openai' ? 'checked' : '' }} class="text-indigo-600 focus:ring-indigo-500">
+                            OpenAI
+                        </label>
+                        @if($activeProvider === 'openai')
+                            <span class="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Actif</span>
+                        @endif
                     </div>
-                @endforeach
+                    <div class="flex items-center gap-2">
+                        <input type="text" value="{{ $openAiKeyConfigured ? $openAiKeyHint : 'Non configurée' }}" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-mono px-3 py-2.5 focus:outline-none" readonly>
+                        <button type="button" onclick="testAiConnection('openai')" id="btnTestOpenai" title="Tester la connexion réelle" class="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition cursor-pointer">
+                            <i class="ph ph-arrows-clockwise text-sm font-bold"></i>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Claude --}}
+                <div class="border {{ $activeProvider === 'claude' ? 'border-indigo-300 bg-indigo-50/40' : 'border-slate-200' }} rounded-xl p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                            <input type="radio" name="aiProviderRadio" value="claude" onchange="selectAiProvider('claude')" {{ $activeProvider === 'claude' ? 'checked' : '' }} class="text-indigo-600 focus:ring-indigo-500">
+                            Anthropic Claude
+                        </label>
+                        @if($activeProvider === 'claude')
+                            <span class="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Actif</span>
+                        @endif
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" value="{{ $anthropicKeyConfigured ? $anthropicKeyHint : 'Non configurée' }}" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs font-mono px-3 py-2.5 focus:outline-none" readonly>
+                        <button type="button" onclick="testAiConnection('claude')" id="btnTestClaude" title="Tester la connexion réelle" class="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition cursor-pointer">
+                            <i class="ph ph-arrows-clockwise text-sm font-bold"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -209,107 +235,6 @@
                     </div>
                 @endforeach
             </div>
-        </div>
-    </div>
-
-    {{-- ─── Row 3 : Allocation des Ressources (Tokens) ──────────────────────── --}}
-    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 mb-6">
-        <div class="flex items-center gap-2 mb-6">
-            <i class="ph ph-circles-three-plus text-indigo-600 text-xl font-bold"></i>
-            <h3 class="text-base font-bold text-slate-900">Allocation des Ressources (Tokens)</h3>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-
-            {{-- Donut chart --}}
-            <div class="flex items-center justify-center">
-                <div class="relative w-40 h-40">
-                    <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#6366f1" stroke-width="3" stroke-dasharray="45 55" stroke-dashoffset="0"/>
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#8b5cf6" stroke-width="3" stroke-dasharray="30 70" stroke-dashoffset="-45"/>
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#0ea5e9" stroke-width="3" stroke-dasharray="15 85" stroke-dashoffset="-75"/>
-                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#10b981" stroke-width="3" stroke-dasharray="10 90" stroke-dashoffset="-90"/>
-                    </svg>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <span class="text-xl font-extrabold text-slate-900">100%</span>
-                        <span class="text-[10px] text-slate-500 font-semibold">Tokens</span>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Region bars grid --}}
-            <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                @foreach($tokenAllocation as $alloc)
-                    @php
-                        $colors = [
-                            'indigo'  => ['bar' => 'bg-indigo-500',  'text' => 'text-indigo-700'],
-                            'violet'  => ['bar' => 'bg-violet-500',  'text' => 'text-violet-700'],
-                            'sky'     => ['bar' => 'bg-sky-500',     'text' => 'text-sky-700'],
-                            'emerald' => ['bar' => 'bg-emerald-500', 'text' => 'text-emerald-700'],
-                        ];
-                        $c = $colors[$alloc['color'] ?? 'indigo'] ?? $colors['indigo'];
-                    @endphp
-                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                        <div class="flex items-center justify-between mb-2">
-                            <p class="text-xs font-bold text-slate-800">{{ $alloc['region'] }}</p>
-                        </div>
-                        <div class="w-full bg-slate-200 rounded-full h-2 mb-2">
-                            <div class="{{ $c['bar'] }} h-2 rounded-full" style="width: {{ $alloc['pct'] }}%"></div>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-base font-extrabold {{ $c['text'] }}">{{ $alloc['pct'] }}%</span>
-                            <span class="text-[10px] font-semibold text-slate-500">{{ $alloc['tier'] }}</span>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
-
-    {{-- ─── Row 4 : Journal d'Entraînement & Mises à jour ──────────────────── --}}
-    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden mb-8">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-                <i class="ph ph-clock-counter-clockwise text-indigo-600 text-xl font-bold"></i>
-                <h3 class="text-base font-bold text-slate-900">Journal d'Entraînement &amp; Mises à jour</h3>
-            </div>
-            <a href="#" onclick="showAiModelToast('Journal d\'entraînement complet affiché.')" class="text-xs font-bold text-indigo-700 hover:underline flex items-center gap-1">
-                Voir tout <i class="ph ph-arrow-right text-sm font-bold"></i>
-            </a>
-        </div>
-
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse whitespace-nowrap">
-                <thead>
-                    <tr class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50/50 border-b border-slate-100">
-                        <th class="py-3 px-6">Date</th>
-                        <th class="py-3 px-6">Modèle</th>
-                        <th class="py-3 px-6">Type d'opération</th>
-                        <th class="py-3 px-6">Statut</th>
-                        <th class="py-3 px-6">Initiateur</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 text-xs font-medium">
-                    @foreach($trainingLog as $log)
-                        <tr class="hover:bg-slate-50/60 transition">
-                            <td class="py-3.5 px-6 text-slate-500">{{ $log['date'] }}</td>
-                            <td class="py-3.5 px-6 font-bold text-slate-900">{{ $log['model'] }}</td>
-                            <td class="py-3.5 px-6 text-slate-700">{{ $log['operation'] }}</td>
-                            <td class="py-3.5 px-6">
-                                @if($log['status'] === 'success')
-                                    <span class="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wide">Succès</span>
-                                @elseif($log['status'] === 'cancelled')
-                                    <span class="bg-rose-100 text-rose-600 text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wide">Annulé</span>
-                                @else
-                                    <span class="bg-amber-100 text-amber-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wide">En cours</span>
-                                @endif
-                            </td>
-                            <td class="py-3.5 px-6 text-slate-600">{{ $log['initiator'] }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
         </div>
     </div>
 
@@ -380,10 +305,53 @@
             const modal = document.getElementById('addAiModelModal');
             if (modal) modal.classList.add('hidden');
         }
-        function testModelLatency(modelName) {
-            showAiModelToast("Ping " + modelName + " effectué avec succès ! Latence : " + (Math.floor(Math.random() * 30) + 15) + "ms.");
+        function testAiConnection(provider) {
+            const btn = document.getElementById(provider === 'claude' ? 'btnTestClaude' : 'btnTestOpenai');
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            fetch('{{ route("superadmin.ai-models.test-connection") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ provider: provider })
+            })
+            .then(res => res.json())
+            .then(data => {
+                showAiModelToast(data.message, data.success);
+            })
+            .catch(() => {
+                showAiModelToast("Erreur de communication avec le serveur.", false);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
         }
-        function toggleAiSetting(key, enabled, label) {
+        function selectAiProvider(provider) {
+            fetch('{{ route("superadmin.ai-models.set-provider") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ provider: provider })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('save failed');
+                return res.json();
+            })
+            .then(data => {
+                showAiModelToast('Fournisseur IA actif : ' + (provider === 'claude' ? 'Anthropic Claude' : 'OpenAI') + '.');
+                setTimeout(() => window.location.reload(), 600);
+            })
+            .catch(() => {
+                showAiModelToast("Échec du changement de fournisseur.", false);
+            });
+        }
+        function toggleAiSetting(checkbox, key, enabled, label) {
             fetch('{{ route("superadmin.ai-models.toggle-setting") }}', {
                 method: 'POST',
                 headers: {
@@ -392,12 +360,16 @@
                 },
                 body: JSON.stringify({ key: key, enabled: enabled ? 1 : 0 })
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('save failed');
+                return res.json();
+            })
             .then(data => {
-                showAiModelToast('Paramètre ' + label + ' appliqué et sauvegardé dans la base SQL !');
+                showAiModelToast('Paramètre ' + label + ' enregistré.');
             })
             .catch(err => {
-                showAiModelToast('Paramètre ' + label + ' mis à jour dans la base SQL.');
+                checkbox.checked = !enabled;
+                showAiModelToast("Échec de l'enregistrement du paramètre " + label + ".", false);
             });
         }
         function updateAiThreshold(key, val, label) {
@@ -409,20 +381,33 @@
                 },
                 body: JSON.stringify({ key: key, value: val })
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('save failed');
+                return res.json();
+            })
             .then(data => {
-                showAiModelToast('Seuil ' + label + ' appliqué à ' + val + '% dans la base SQL !');
+                showAiModelToast('Seuil ' + label + ' enregistré à ' + val + '%.');
             })
             .catch(err => {
-                showAiModelToast('Seuil ' + label + ' ajusté.');
+                showAiModelToast("Échec de l'enregistrement du seuil " + label + ".", false);
             });
         }
-        function showAiModelToast(msg) {
+        function showAiModelToast(msg, success = true) {
             const toast = document.getElementById('aiModelsToast');
             const toastMsg = document.getElementById('aiModelsToastMsg');
-            if (toast && toastMsg) {
-                toastMsg.innerText = msg;
-                toast.classList.remove('hidden');
+            const toastIcon = document.getElementById('aiModelsToastIcon');
+            if (!toast || !toastMsg) return;
+
+            toastMsg.innerText = msg;
+            toast.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-800', 'bg-rose-50', 'border-rose-200', 'text-rose-800');
+            toastIcon.classList.remove('text-emerald-600', 'text-rose-600', 'ph-check-circle', 'ph-warning-circle');
+
+            if (success) {
+                toast.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+                toastIcon.classList.add('text-emerald-600', 'ph-check-circle');
+            } else {
+                toast.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-800');
+                toastIcon.classList.add('text-rose-600', 'ph-warning-circle');
             }
         }
         document.addEventListener('keydown', function (e) {

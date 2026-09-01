@@ -5,7 +5,7 @@
 @endpush
 
 @section('content')
-<div class="space-y-6" x-data="{ createOpen: false, editOpen: null }">
+<div class="space-y-6" x-data="{ createOpen: false, editOpen: null, feeOpen: null }">
     @include('SchoolDashboard::transport._tabs')
 
     <div class="flex items-center justify-between">
@@ -47,13 +47,19 @@
                 @endif
             </div>
 
-            <!-- Suggestion IA -->
+            <!-- Suggestion (calcul géospatial réel) -->
             <div class="bg-gradient-to-br from-[#F5F3FF] to-purple-50/50 border border-purple-100 rounded-2xl p-5 shadow-sm">
                 <div class="flex items-center gap-2 mb-3">
                     <i class="ph-fill ph-sparkle text-purple-600 text-lg"></i>
-                    <h3 class="font-extrabold text-slate-800 text-[15px]">Suggestion IA</h3>
+                    <h3 class="font-extrabold text-slate-800 text-[15px]">Suggestion</h3>
                 </div>
-                <p class="text-[13px] text-slate-700 leading-relaxed">Envisagez de fusionner les routes couvrant des zones géographiques proches afin de réduire la distance totale parcourue et le nombre de bus mobilisés aux heures de pointe.</p>
+                @if($nearbyCrossRoutePair)
+                    <p class="text-[13px] text-slate-700 leading-relaxed">
+                        Les arrêts <strong>{{ $nearbyCrossRoutePair['stop_a'] }}</strong> ({{ $nearbyCrossRoutePair['route_a'] }}) et <strong>{{ $nearbyCrossRoutePair['stop_b'] }}</strong> ({{ $nearbyCrossRoutePair['route_b'] }}) ne sont qu'à {{ $nearbyCrossRoutePair['distance_m'] }}m l'un de l'autre — envisagez de les regrouper.
+                    </p>
+                @else
+                    <p class="text-[13px] text-slate-700 leading-relaxed">Aucun arrêt proche (moins de 400m) détecté entre deux routes différentes.</p>
+                @endif
             </div>
         </div>
     </div>
@@ -69,6 +75,7 @@
                     <tr class="bg-[#F8FAFC]">
                         <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Nom</th>
                         <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Zone</th>
+                        <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Prix</th>
                         <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Arrêts</th>
                         <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Distance</th>
                         <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Fréquence</th>
@@ -87,6 +94,10 @@
                             <p class="text-[13.5px] font-bold text-slate-800">{{ $route->name }}</p>
                         </td>
                         <td class="px-5 py-4 text-[13px] font-semibold text-slate-600">{{ $route->zone ?? '-' }}</td>
+                        <td class="px-5 py-4 text-[13px] font-semibold text-slate-600">
+                            @php $routeFeeLevel = $route->zone ? ($feeLevelsByZone[$route->zone] ?? null) : null; @endphp
+                            {{ $routeFeeLevel ? number_format($routeFeeLevel->total_amount, 0, ',', ' ') . ' FCFA' : '-' }}
+                        </td>
                         <td class="px-5 py-4 text-[13px] font-semibold text-slate-600">{{ $route->stops_count }}</td>
                         <td class="px-5 py-4 text-[13px] font-semibold text-slate-600">{{ $route->distance_km ? $route->distance_km . ' km' : '-' }}</td>
                         <td class="px-5 py-4">
@@ -105,6 +116,9 @@
                             @if($route->bus)
                                 {{ $route->bus->bus_number }}
                                 @if($route->bus->driver) — {{ $route->bus->driver->first_name }} {{ $route->bus->driver->last_name }} @endif
+                                <span class="ml-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-slate-100 text-slate-600">
+                                    {{ $route->period ? \App\Modules\Transport\Domain\Models\Route::PERIODS[$route->period] : 'Matin+Soir' }}
+                                </span>
                             @else
                                 <span class="text-slate-400">Non assignée</span>
                             @endif
@@ -115,12 +129,19 @@
                             </span>
                         </td>
                         <td class="px-5 py-4">
-                            <button @click="editOpen = {{ $route->id }}" class="text-[#031C5B] font-bold text-[13px] hover:underline">Modifier</button>
+                            <div class="flex items-center gap-3">
+                                <button @click="editOpen = {{ $route->id }}" class="text-[#031C5B] font-bold text-[13px] hover:underline">Modifier</button>
+                                @if($route->zone)
+                                    <button @click="feeOpen = {{ $route->id }}" class="text-purple-700 font-bold text-[13px] hover:underline">Configurer Frais</button>
+                                @else
+                                    <span class="text-slate-300 font-semibold text-[13px]" title="Définissez une zone pour configurer le tarif">Configurer Frais</span>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="px-5 py-10 text-center text-slate-500 font-medium">Aucune route enregistrée.</td>
+                        <td colspan="9" class="px-5 py-10 text-center text-slate-500 font-medium">Aucune route enregistrée.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -128,9 +149,12 @@
         </div>
     </div>
 
-    @include('SchoolDashboard::transport._route_modal', ['route' => null])
+    @include('SchoolDashboard::transport._route_modal', ['route' => null, 'zones' => $zones ?? []])
     @foreach($routes as $route)
-        @include('SchoolDashboard::transport._route_modal', ['route' => $route])
+        @include('SchoolDashboard::transport._route_modal', ['route' => $route, 'zones' => $zones ?? []])
+        @if($route->zone)
+            @include('SchoolDashboard::transport._route_fee_modal', ['route' => $route, 'feeLevel' => $feeLevelsByZone[$route->zone] ?? null])
+        @endif
     @endforeach
 </div>
 @endsection

@@ -3,9 +3,11 @@
 namespace App\Modules\Canteen\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class StockMovement extends Model
 {
+    use BelongsToSchool;
     protected $table = 'canteen_stock_movements';
 
     protected $fillable = [

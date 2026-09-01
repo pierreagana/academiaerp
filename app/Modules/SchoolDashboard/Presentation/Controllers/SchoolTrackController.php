@@ -17,6 +17,25 @@ use Illuminate\Support\Facades\Storage;
  */
 class SchoolTrackController extends Controller
 {
+    /** Read-only profile — what the school actually has on School Track, mirroring the mobile parent view. */
+    public function show()
+    {
+        $school = auth()->user()->school;
+
+        $examSuccessRates = $school->examSuccessRates();
+        $availableExamTypes = $school->availableExamTypes();
+        $progressionAnnuelle = $school->computedProgressionAnnuelle();
+        $isComplete = $school->isSchoolTrackProfileComplete();
+        // Same merged (dynamic catalog + legacy JSON) facility list the
+        // mobile app receives via toSchoolTrackArray() — single source of
+        // truth, so this page never drifts from what parents actually see.
+        $facilities = $school->toSchoolTrackArray()['allFacilities'];
+
+        return view('SchoolDashboard::dashboard.school_track_show', compact(
+            'school', 'examSuccessRates', 'availableExamTypes', 'progressionAnnuelle', 'isComplete', 'facilities'
+        ));
+    }
+
     public function edit()
     {
         $school = auth()->user()->school;
@@ -35,15 +54,14 @@ class SchoolTrackController extends Controller
             'tags' => 'nullable|string|max:500',
             'facilities' => 'nullable|array',
             'facilities.*' => 'in:' . implode(',', School::FACILITY_KEYS),
-            'success_rate' => 'nullable|integer|min:0|max:100',
             'academic_radar' => 'nullable|array',
             'academic_radar.*' => 'nullable|integer|min:0|max:100',
-            'nearby_places' => 'nullable|array',
-            'nearby_places.*.emoji' => 'nullable|string|max:8',
-            'nearby_places.*.label' => 'nullable|string|max:100',
-            'nearby_places.*.distance' => 'nullable|string|max:50',
             'gallery' => 'nullable|array',
-            'gallery.*' => 'image|max:4096',
+            // Must stay at or under php.ini's upload_max_filesize (currently
+            // 10M) — a larger file gets silently dropped by PHP before
+            // Laravel ever sees it, so this rule is the only thing that can
+            // actually show the user an error instead of nothing happening.
+            'gallery.*' => 'image|max:10240',
             'remove_gallery' => 'nullable|array',
             'remove_gallery.*' => 'string',
         ]);
@@ -64,8 +82,6 @@ class SchoolTrackController extends Controller
         }
         $school->facilities = $facilities;
 
-        $school->success_rate = $validated['success_rate'] ?? null;
-
         $radarInput = $validated['academic_radar'] ?? [];
         $radar = [];
         foreach (School::ACADEMIC_RADAR_KEYS as $key) {
@@ -74,16 +90,6 @@ class SchoolTrackController extends Controller
             }
         }
         $school->academic_radar = $radar;
-
-        $school->nearby_places = collect($validated['nearby_places'] ?? [])
-            ->filter(fn ($place) => !empty($place['label']))
-            ->map(fn ($place) => [
-                'emoji' => $place['emoji'] ?? '📍',
-                'label' => $place['label'],
-                'distance' => $place['distance'] ?? '',
-            ])
-            ->values()
-            ->all();
 
         $existingGallery = collect($school->gallery_paths ?? []);
         $toRemove = collect($validated['remove_gallery'] ?? []);
@@ -102,6 +108,6 @@ class SchoolTrackController extends Controller
 
         $school->save();
 
-        return redirect()->route('school.school-track.edit')->with('success', 'Le profil School Track a été mis à jour.');
+        return redirect()->route('school.school-track')->with('success', 'Le profil School Track a été mis à jour.');
     }
 }

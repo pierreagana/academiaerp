@@ -50,8 +50,8 @@
                     <i class="ph-fill ph-sparkle text-purple-600 text-lg"></i>
                     <h3 class="font-extrabold text-slate-800 text-[14px]">Assistant IA</h3>
                 </div>
-                <p class="text-[12.5px] text-slate-600 font-medium leading-relaxed">
-                    Basé sur les produits locaux de saison et les recommandations diététiques, pensez à varier les sources de protéines et à surveiller les produits bientôt périmés dans votre stock.
+                <p class="text-[12.5px] text-slate-600 font-medium leading-relaxed" id="canteenPlanningAdviceText">
+                    Analyse du stock et du menu en cours...
                 </p>
             </div>
 
@@ -196,4 +196,24 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('{{ route("school.canteen.planning.ai-advice") }}?week={{ $week }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const el = document.getElementById('canteenPlanningAdviceText');
+            el.innerText = data.success ? data.advice : (data.error || "Conseil IA indisponible pour le moment.");
+        })
+        .catch(() => {
+            document.getElementById('canteenPlanningAdviceText').innerText = "Erreur de communication avec le serveur.";
+        });
+    });
+</script>
 @endsection

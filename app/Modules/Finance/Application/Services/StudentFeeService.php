@@ -5,6 +5,7 @@ namespace App\Modules\Finance\Application\Services;
 use App\Modules\Academic\Domain\Models\Student;
 use App\Modules\Finance\Domain\Models\FeeLevel;
 use App\Modules\Finance\Domain\Models\Payment;
+use App\Modules\Finance\Domain\Models\Scholarship;
 use App\Modules\Finance\Domain\Repositories\PaymentRepositoryInterface;
 use Illuminate\Support\Collection;
 
@@ -22,7 +23,15 @@ class StudentFeeService
      * installment schedule for one student. Nothing here is persisted —
      * it's recomputed from FeeLevel + the sum of Payments every time.
      */
-    public function summaryFor(Student $student, string $type = 'tuition'): array
+    /**
+     * @param string|null $zone For type 'transport': the student's enrolled
+     *   route zone, if known — resolves the per-zone tariff instead of the
+     *   old single school-wide sentinel (see Route price sync in
+     *   SchoolDashboard's TransportController). Null falls back to the
+     *   sentinel, so a school with no zone-priced routes yet (or a student
+     *   not enrolled) behaves exactly as before.
+     */
+    public function summaryFor(Student $student, string $type = 'tuition', ?string $zone = null): array
     {
         $academicYear = $student->academic_year;
         $level = $student->academicClass?->level;
@@ -38,7 +47,7 @@ class StudentFeeService
             : ($academicYear
                 ? FeeLevel::where('school_id', $student->school_id)
                     ->where('type', $type)
-                    ->where('level', FeeLevel::schoolWideLevelFor($type))
+                    ->where('level', $type === 'transport' && $zone ? $zone : FeeLevel::schoolWideLevelFor($type))
                     ->where('academic_year', $academicYear)
                     ->first()
                 : null);
@@ -50,6 +59,7 @@ class StudentFeeService
                 'feeLevel' => null,
                 'total' => 0.0,
                 'paid' => $totalPaid,
+                'scholarshipCredit' => 0.0,
                 'remaining' => 0.0,
                 'status' => 'unconfigured',
                 'schedule' => [],
@@ -58,17 +68,43 @@ class StudentFeeService
         }
 
         $total = $feeLevel->total_amount;
-        $remaining = max($total - $totalPaid, 0);
 
-        $lines = [
-            ['label' => 'Échéance 1 (Inscription)', 'amount' => (float) $feeLevel->registration_fee, 'due_date' => $feeLevel->start_date->copy()],
-        ];
-        for ($i = 1; $i <= $feeLevel->installments_count; $i++) {
-            $lines[] = [
-                'label' => 'Échéance ' . ($i + 1),
-                'amount' => (float) $feeLevel->monthly_fee,
-                'due_date' => $feeLevel->start_date->copy()->addMonths($i),
-            ];
+        // A scholarship is a real reduction of what the family owes for tuition
+        // (not a stipend paid alongside it) — only "active" scholarships count,
+        // and only against tuition, never cantine/transport. Capped at $total so
+        // a scholarship can never flip the balance negative.
+        $scholarshipCredit = 0.0;
+        if ($type === 'tuition') {
+            $scholarshipCredit = (float) Scholarship::where('student_id', $student->id)
+                ->where('status', 'active')
+                ->get()
+                ->sum(fn (Scholarship $s) => $s->annual_amount);
+            $scholarshipCredit = min($scholarshipCredit, $total);
+        }
+
+        $effectivePaid = $totalPaid + $scholarshipCredit;
+        $remaining = max($total - $effectivePaid, 0);
+
+        // The 1st due date carries both the registration fee and the 1st monthly
+        // installment together (one combined payment) — every later installment is
+        // then spaced a month apart from that same 1st due date.
+        $lines = [];
+        if ($feeLevel->installments_count < 1) {
+            $lines[] = ['label' => 'Échéance 1 (Inscription)', 'amount' => (float) $feeLevel->registration_fee, 'due_date' => $feeLevel->start_date->copy()];
+        } else {
+            for ($i = 1; $i <= $feeLevel->installments_count; $i++) {
+                $amount = $feeLevel->installmentAmount($i);
+                $label = 'Échéance ' . $i;
+                if ($i === 1) {
+                    $amount += (float) $feeLevel->registration_fee;
+                    $label = 'Échéance 1 (Inscription + 1er versement)';
+                }
+                $lines[] = [
+                    'label' => $label,
+                    'amount' => $amount,
+                    'due_date' => $feeLevel->start_date->copy()->addMonths($i - 1),
+                ];
+            }
         }
 
         $schedule = [];
@@ -79,7 +115,7 @@ class StudentFeeService
         foreach ($lines as $line) {
             $cumulative += $line['amount'];
 
-            if ($totalPaid >= $cumulative) {
+            if ($effectivePaid >= $cumulative) {
                 $status = 'paid';
             } elseif (!$nextUnpaidAssigned) {
                 $status = 'due';
@@ -101,13 +137,14 @@ class StudentFeeService
             $overallStatus = 'paid';
         } else {
             $isLate = collect($schedule)->contains(fn ($l) => $l['status'] !== 'paid' && $l['due_date']->lte(now()));
-            $overallStatus = $isLate ? 'late' : ($totalPaid > 0 ? 'partial' : 'pending');
+            $overallStatus = $isLate ? 'late' : ($effectivePaid > 0 ? 'partial' : 'pending');
         }
 
         return [
             'feeLevel' => $feeLevel,
             'total' => $total,
             'paid' => $totalPaid,
+            'scholarshipCredit' => $scholarshipCredit,
             'remaining' => $remaining,
             'status' => $overallStatus,
             'schedule' => $schedule,

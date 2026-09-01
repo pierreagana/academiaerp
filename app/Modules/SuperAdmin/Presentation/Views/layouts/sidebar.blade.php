@@ -19,13 +19,13 @@
                 $path = request()->path();
                 // Determine which accordion is active based on current path
                 $execRoutes   = ['superadmin', 'superadmin/network-health', 'superadmin/system-alerts'];
-                $schoolRoutes = ['superadmin/schools', 'superadmin/registration-requests', 'superadmin/multi-campus', 'superadmin/specific-configuration'];
-                $saasRoutes   = ['superadmin/packages', 'superadmin/service-catalog', 'superadmin/modules', 'superadmin/extension-requests', 'superadmin/invoices', 'superadmin/revenue'];
+                $schoolRoutes = ['superadmin/schools', 'superadmin/registration-requests', 'superadmin/multi-campus', 'superadmin/facilities', 'superadmin/specific-configuration'];
+                $saasRoutes   = ['superadmin/packages', 'superadmin/service-catalog', 'superadmin/school-track', 'superadmin/modules', 'superadmin/extension-requests', 'superadmin/plan-change-requests', 'superadmin/invoices', 'superadmin/revenue', 'superadmin/payment-gateways'];
                 $aiRoutes     = ['superadmin/revenue', 'superadmin/ai-analytics', 'superadmin/ai-models'];
                 $commRoutes   = ['superadmin/broadcast'];
                 $secRoutes    = ['superadmin/security-permissions', 'superadmin/system-logs', 'superadmin/backups'];
                 $staffRoutes  = ['superadmin/staff', 'superadmin/security-permissions'];
-                $sysRoutes    = ['superadmin/global-settings', 'superadmin/cms'];
+                $sysRoutes    = ['superadmin/global-settings', 'superadmin/cms', 'superadmin/notification-settings'];
                 $suppRoutes   = ['superadmin/support'];
 
                 // Use closure to prevent "Cannot redeclare" PHP fatal when sidebar is included repeatedly
@@ -98,6 +98,10 @@
                         <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/multi-campus') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
                         {{ __('multi_campus_management') }}
                     </a>
+                    <a href="/superadmin/facilities" class="flex items-start gap-2.5 px-3 py-1.5 text-[13.5px] leading-snug transition {{ $isRoute('superadmin/facilities') ? 'font-bold' : 'font-medium text-slate-500 hover:text-slate-800' }}" {!! $isRoute('superadmin/facilities') ? 'style="color: var(--primary-color);"' : '' !!}>
+                        <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/facilities') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
+                        Équipements & Services
+                    </a>
                     <a href="/superadmin/specific-configuration" class="flex items-start gap-2.5 px-3 py-1.5 text-[13.5px] leading-snug transition {{ $isRoute('superadmin/specific-configuration') ? 'font-bold' : 'font-medium text-slate-500 hover:text-slate-800' }}" {!! $isRoute('superadmin/specific-configuration') ? 'style="color: var(--primary-color);"' : '' !!}>
                         <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/specific-configuration') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
                         {{ __('specific_configuration') }}
@@ -123,6 +127,10 @@
                         <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/service-catalog') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
                         {{ __('service_catalog') }}
                     </a>
+                    <a href="/superadmin/school-track" class="flex items-start gap-2.5 px-3 py-1.5 text-[13.5px] leading-snug transition {{ $isRoute('superadmin/school-track') ? 'font-bold' : 'font-medium text-slate-500 hover:text-slate-800' }}" {!! $isRoute('superadmin/school-track') ? 'style="color: var(--primary-color);"' : '' !!}>
+                        <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/school-track') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
+                        School Track
+                    </a>
                     <a href="/superadmin/modules" class="flex items-start gap-2.5 px-3 py-1.5 text-[13.5px] leading-snug transition {{ $isRoute('superadmin/modules') || $isRoute('superadmin/module-details') ? 'font-bold' : 'font-medium text-slate-500 hover:text-slate-800' }}" {!! $isRoute('superadmin/modules') || $isRoute('superadmin/module-details') ? 'style="color: var(--primary-color);"' : '' !!}>
                         <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/modules') || $isRoute('superadmin/module-details') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
                         {{ __('modules_management') }}
@@ -131,9 +139,17 @@
                         <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/extension-requests') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
                         Demandes d'Extensions
                     </a>
+                    <a href="/superadmin/plan-change-requests" class="flex items-start gap-2.5 px-3 py-1.5 text-[13.5px] leading-snug transition {{ $isRoute('superadmin/plan-change-requests') ? 'font-bold' : 'font-medium text-slate-500 hover:text-slate-800' }}" {!! $isRoute('superadmin/plan-change-requests') ? 'style="color: var(--primary-color);"' : '' !!}>
+                        <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/plan-change-requests') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
+                        Demandes de Forfait
+                    </a>
                     <a href="/superadmin/invoices" class="flex items-start gap-2.5 px-3 py-1.5 text-[13.5px] leading-snug transition {{ $isRoute('superadmin/invoices') ? 'font-bold' : 'font-medium text-slate-500 hover:text-slate-800' }}" {!! $isRoute('superadmin/invoices') ? 'style="color: var(--primary-color);"' : '' !!}>
                         <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/invoices') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
                         {{ __('billing_revenue') }}
+                    </a>
+                    <a href="/superadmin/payment-gateways" class="flex items-start gap-2.5 px-3 py-1.5 text-[13.5px] leading-snug transition {{ $isRoute('superadmin/payment-gateways') ? 'font-bold' : 'font-medium text-slate-500 hover:text-slate-800' }}" {!! $isRoute('superadmin/payment-gateways') ? 'style="color: var(--primary-color);"' : '' !!}>
+                        <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/payment-gateways') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
+                        Passerelles de Paiement
                     </a>
                 </div>
             </div>
@@ -243,6 +259,10 @@
                     <a href="/superadmin/cms" class="flex items-start gap-2.5 px-3 py-1.5 text-[13.5px] leading-snug transition {{ $isRoute('superadmin/cms') ? 'font-bold' : 'font-medium text-slate-500 hover:text-slate-800' }}" {!! $isRoute('superadmin/cms') ? 'style="color: var(--primary-color);"' : '' !!}>
                         <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/cms') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
                         {{ __('website_management_cms') }}
+                    </a>
+                    <a href="/superadmin/notification-settings" class="flex items-start gap-2.5 px-3 py-1.5 text-[13.5px] leading-snug transition {{ $isRoute('superadmin/notification-settings') ? 'font-bold' : 'font-medium text-slate-500 hover:text-slate-800' }}" {!! $isRoute('superadmin/notification-settings') ? 'style="color: var(--primary-color);"' : '' !!}>
+                        <div class="shrink-0 mt-[6px] w-1.5 h-1.5 rounded-full" {!! $isRoute('superadmin/notification-settings') ? 'style="background-color: var(--primary-color);"' : 'class="bg-slate-300"' !!}></div>
+                        Paramètres de Notification
                     </a>
                 </div>
             </div>

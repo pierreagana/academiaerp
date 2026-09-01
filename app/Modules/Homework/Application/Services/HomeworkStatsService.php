@@ -54,7 +54,7 @@ class HomeworkStatsService
     {
         $query = $this->scopeOwner(HomeworkAssignment::query(), $teacher, $schoolId)
             ->where('type', HomeworkAssignment::TYPE_HOMEWORK)
-            ->with(['academicClass', 'subject'])
+            ->with(['academicClass', 'subject', 'evaluationType'])
             ->orderByDesc('scheduled_at');
 
         if ($classId) {
@@ -84,7 +84,7 @@ class HomeworkStatsService
     {
         return $this->scopeOwner(HomeworkAssignment::query(), $teacher, $schoolId)
             ->where('type', HomeworkAssignment::TYPE_TEST)
-            ->with(['academicClass', 'subject', 'room'])
+            ->with(['academicClass', 'subject', 'room', 'evaluationType'])
             ->orderByDesc('scheduled_at')
             ->get();
     }

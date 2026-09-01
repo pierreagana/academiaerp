@@ -387,6 +387,34 @@
 
 @push('scripts')
 <script>
+    // Round pin marker (ball + stem, glossy highlight) — shared by the city-cluster
+    // and individual-school markers on both the main and fullscreen-modal maps.
+    // `badgeCount`, when set, draws a small count bubble on the ball (city clusters);
+    // schools instead get a status dot baked into the ball color itself.
+    // `showLabel` is off for schools — the name still shows in the click popup,
+    // so a persistent label under every pin would just be visual clutter.
+    function buildPinIconHtml(color, label, badgeCount, showLabel = true) {
+        const ball = 26;
+        const stem = 14;
+        const totalH = ball + stem;
+        const badgeHtml = badgeCount
+            ? `<span style="position:absolute; top:-4px; right:-4px; background:#2563EB; color:white; border:2px solid white; border-radius:999px; min-width:16px; height:16px; padding:0 3px; font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center; line-height:1;">${badgeCount}</span>`
+            : '';
+        return `
+            <div style="display:flex; flex-direction:column; align-items:center; cursor:pointer;">
+                <div style="position:relative; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));">
+                    <svg width="${ball}" height="${totalH}" viewBox="0 0 ${ball} ${totalH}">
+                        <rect x="${ball / 2 - 2}" y="${ball * 0.65}" width="4" height="${stem}" rx="2" fill="#1E293B"></rect>
+                        <circle cx="${ball / 2}" cy="${ball / 2}" r="${ball / 2}" fill="${color}"></circle>
+                        <circle cx="${ball * 0.62}" cy="${ball * 0.36}" r="${ball * 0.16}" fill="white" opacity="0.4"></circle>
+                    </svg>
+                    ${badgeHtml}
+                </div>
+                ${showLabel ? `<div style="margin-top:2px; background:white; border:1px solid #E2E8F0; padding:2px 8px; border-radius:8px; font-weight:700; font-size:11px; color:#1E293B; box-shadow:0 2px 6px rgba(0,0,0,0.15); white-space:nowrap; font-family:system-ui,sans-serif;">${label}</div>` : ''}
+            </div>
+        `;
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const mapEl = document.getElementById('campusMap');
         if (mapEl && typeof L !== 'undefined') {
@@ -417,11 +445,9 @@
 
                     const cityBadgeIcon = L.divIcon({
                         className: 'custom-city-badge',
-                        html: `<div style="background: rgba(3,28,91,0.92); color: white; border: 2px solid white; padding: 4px 10px; border-radius: 20px; font-weight: 800; font-size: 11px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); white-space: nowrap; font-family: system-ui, sans-serif; cursor: pointer;">
-                                📍 ${net.city} <span style="background: #2563EB; padding: 1px 6px; border-radius: 10px; margin-left: 3px;">${net.school_count}</span>
-                               </div>`,
-                        iconSize: [100, 30],
-                        iconAnchor: [50, 15]
+                        html: buildPinIconHtml('#031C5B', net.city, net.school_count),
+                        iconSize: [140, 64],
+                        iconAnchor: [70, 40]
                     });
 
                     const marker = L.marker([net.lat, net.lng], { icon: cityBadgeIcon }).addTo(cityLayer);
@@ -441,12 +467,9 @@
 
                     const schoolIcon = L.divIcon({
                         className: 'custom-school-pin',
-                        html: `<div style="background: white; border: 2px solid ${statusColor}; padding: 3px 8px; border-radius: 8px; font-weight: 700; font-size: 11px; color: #1E293B; box-shadow: 0 4px 10px rgba(0,0,0,0.15); white-space: nowrap; font-family: system-ui, sans-serif; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                <span style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}; display: inline-block;"></span>
-                                ${sch.name}
-                               </div>`,
-                        iconSize: [130, 26],
-                        iconAnchor: [65, 13]
+                        html: buildPinIconHtml(statusColor, sch.name, null, false),
+                        iconSize: [140, 64],
+                        iconAnchor: [70, 40]
                     });
 
                     const schoolMarker = L.marker([sch.lat, sch.lng], { icon: schoolIcon }).addTo(schoolLayer);
@@ -510,11 +533,9 @@
                 if (net.lat && net.lng) {
                     const cityBadgeIcon = L.divIcon({
                         className: 'custom-city-badge-modal',
-                        html: `<div style="background: rgba(3,28,91,0.92); color: white; border: 2px solid white; padding: 4px 10px; border-radius: 20px; font-weight: 800; font-size: 11px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); white-space: nowrap; font-family: system-ui, sans-serif; cursor: pointer;">
-                                📍 ${net.city} <span style="background: #2563EB; padding: 1px 6px; border-radius: 10px; margin-left: 3px;">${net.school_count}</span>
-                               </div>`,
-                        iconSize: [100, 30],
-                        iconAnchor: [50, 15]
+                        html: buildPinIconHtml('#031C5B', net.city, net.school_count),
+                        iconSize: [140, 64],
+                        iconAnchor: [70, 40]
                     });
                     const marker = L.marker([net.lat, net.lng], { icon: cityBadgeIcon }).addTo(modalCityLayer);
                     marker.on('click', function () {
@@ -528,12 +549,9 @@
                     const statusColor = sch.status === 'actif' ? '#059669' : '#DC2626';
                     const schoolIcon = L.divIcon({
                         className: 'custom-school-pin-modal',
-                        html: `<div style="background: white; border: 2px solid ${statusColor}; padding: 3px 8px; border-radius: 8px; font-weight: 700; font-size: 11px; color: #1E293B; box-shadow: 0 4px 10px rgba(0,0,0,0.15); white-space: nowrap; font-family: system-ui, sans-serif; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                <span style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}; display: inline-block;"></span>
-                                ${sch.name}
-                               </div>`,
-                        iconSize: [130, 26],
-                        iconAnchor: [65, 13]
+                        html: buildPinIconHtml(statusColor, sch.name, null, false),
+                        iconSize: [140, 64],
+                        iconAnchor: [70, 40]
                     });
                     const schoolMarker = L.marker([sch.lat, sch.lng], { icon: schoolIcon }).addTo(modalSchoolLayer);
                     schoolMarker.bindPopup(`

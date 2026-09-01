@@ -27,7 +27,32 @@ class EventController extends Controller
         $typeBreakdown = $statsService->typeBreakdown($schoolId);
         $upcoming = $repository->upcoming(5);
 
-        return view('SchoolDashboard::communication.events.dashboard', compact('stats', 'typeBreakdown', 'upcoming'));
+        // Real scheduling gap from the actual upcoming events — replaces a
+        // fabricated "15-25 novembre, +22% participation" claim with
+        // nothing behind it.
+        $scheduleGap = null;
+        $sortedUpcoming = $upcoming->sortBy('start_at')->values();
+        $cursor = now();
+        $largestGapDays = 0;
+        $largestGapStart = null;
+
+        foreach ($sortedUpcoming as $event) {
+            $gapDays = $cursor->diffInDays($event->start_at, false);
+            if ($gapDays > $largestGapDays) {
+                $largestGapDays = $gapDays;
+                $largestGapStart = $cursor->copy();
+            }
+            $cursor = $event->end_at ?? $event->start_at;
+        }
+
+        if ($largestGapDays >= 7) {
+            $scheduleGap = [
+                'days' => (int) $largestGapDays,
+                'from' => $largestGapStart->format('d/m/Y'),
+            ];
+        }
+
+        return view('SchoolDashboard::communication.events.dashboard', compact('stats', 'typeBreakdown', 'upcoming', 'scheduleGap'));
     }
 
     public function calendar(Request $request, EventRepositoryInterface $repository, AcademicClassRepositoryInterface $classRepository)
@@ -67,6 +92,41 @@ class EventController extends Controller
         $teachers = $teacherRepository->all();
 
         return view('SchoolDashboard::communication.events.create', compact('classes', 'rooms', 'teachers'));
+    }
+
+    /**
+     * Real budget/equipment suggestion from this school's own past events of
+     * the same type — replaces a static claim that "EduAfrica AI" would
+     * pre-fill the form, which no code anywhere actually did.
+     */
+    public function aiLogisticsSuggestion(\Illuminate\Http\Request $request)
+    {
+        $schoolId = auth()->user()->school_id;
+        $type = $request->get('type');
+
+        $pastEvents = \App\Modules\Communication\Domain\Models\Event::where('school_id', $schoolId)
+            ->where('type', $type)
+            ->whereNotNull('estimated_budget')
+            ->latest('start_at')
+            ->limit(10)
+            ->get();
+
+        if ($pastEvents->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => "Pas encore d'événement de ce type enregistré pour proposer une estimation.",
+            ]);
+        }
+
+        $avgBudget = round($pastEvents->avg('estimated_budget'));
+        $commonEquipment = $pastEvents->pluck('equipment_needs')->filter()->countBy()->sortDesc()->keys()->first();
+
+        return response()->json([
+            'success' => true,
+            'count' => $pastEvents->count(),
+            'avg_budget' => $avgBudget,
+            'common_equipment' => $commonEquipment,
+        ]);
     }
 
     public function store(Request $request, CreateEventUseCase $useCase)

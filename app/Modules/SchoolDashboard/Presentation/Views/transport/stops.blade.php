@@ -32,6 +32,9 @@
         @forelse($routes as $route)
             <a href="{{ route('school.transport.stops', ['route' => $route->id]) }}" class="px-4 py-2 rounded-xl text-[13px] font-bold whitespace-nowrap transition {{ $selectedRoute && $selectedRoute->id === $route->id ? 'bg-[#031C5B] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                 {{ $route->name }}
+                @if($route->bus)
+                    <span class="ml-1 text-[10.5px] font-normal opacity-70">— {{ $route->bus->bus_number }} · {{ $route->period ? \App\Modules\Transport\Domain\Models\Route::PERIODS[$route->period] : 'Matin+Soir' }}</span>
+                @endif
             </a>
         @empty
             <p class="text-slate-400 text-[13px]">Aucune route disponible — créez-en une dans l'onglet Itinéraires.</p>
@@ -80,13 +83,17 @@
                 </div>
             </div>
 
-            <!-- IA Suggestion -->
+            <!-- Suggestion (calcul géospatial réel) -->
             <div class="bg-gradient-to-br from-[#F5F3FF] to-purple-50/50 border border-purple-100 rounded-2xl p-5 shadow-sm">
                 <div class="flex items-center gap-2 mb-3">
                     <i class="ph-fill ph-sparkle text-purple-600 text-lg"></i>
-                    <h3 class="font-extrabold text-slate-800 text-[15px]">Optimisation de Route Détectée</h3>
+                    <h3 class="font-extrabold text-slate-800 text-[15px]">{{ $nearbyConsecutivePair ? 'Optimisation de Route Détectée' : 'Optimisation de Route' }}</h3>
                 </div>
-                <p class="text-[13px] text-slate-700 leading-relaxed">Deux arrêts proches en début de séquence pourraient être regroupés pour réduire le temps de trajet total.</p>
+                @if($nearbyConsecutivePair)
+                    <p class="text-[13px] text-slate-700 leading-relaxed">Les arrêts <strong>{{ $nearbyConsecutivePair['stop_a'] }}</strong> et <strong>{{ $nearbyConsecutivePair['stop_b'] }}</strong> ne sont qu'à {{ $nearbyConsecutivePair['distance_m'] }}m l'un de l'autre — envisagez de les regrouper.</p>
+                @else
+                    <p class="text-[13px] text-slate-700 leading-relaxed">Aucun arrêt consécutif proche (moins de 400m) détecté sur cette route.</p>
+                @endif
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -124,7 +131,7 @@
                 </div>
                 <div class="flex items-center justify-between">
                     <span class="text-[12.5px] text-slate-500 font-semibold">Accompagnateurs</span>
-                    <span class="text-[13px] font-bold text-slate-800">{{ $selectedRoute->bus?->driver ? 1 : 0 }}</span>
+                    <span class="text-[13px] font-bold text-slate-800">{{ $selectedRoute->bus?->driver?->has_assistant ? 1 : 0 }}</span>
                 </div>
             </div>
         </div>
@@ -132,7 +139,7 @@
 
     @include('SchoolDashboard::transport._add_stop_modal')
     @foreach($stops as $stop)
-        @include('SchoolDashboard::transport._assign_students_modal', ['stop' => $stop])
+        @include('SchoolDashboard::transport._assign_students_modal', ['stop' => $stop, 'routePeriod' => $selectedRoute->period])
     @endforeach
     @endif
 </div>

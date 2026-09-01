@@ -3,9 +3,11 @@
 namespace App\Modules\Infirmary\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class MedicationMovement extends Model
 {
+    use BelongsToSchool;
     protected $table = 'infirmary_medication_movements';
 
     protected $fillable = [

@@ -72,7 +72,7 @@
                                 @if($contract->needs_reminder)
                                     <form method="POST" action="{{ route('school.hr.contracts.acknowledge', $contract->id) }}" class="flex items-center gap-2">
                                         @csrf
-                                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 whitespace-nowrap">Dans {{ \Illuminate\Support\Carbon::today()->diffInDays($contract->end_date) }}j</span>
+                                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 whitespace-nowrap">Dans {{ (int) ceil(\Illuminate\Support\Carbon::today()->diffInDays($contract->end_date, true)) }}j</span>
                                         <button type="submit" class="text-[11.5px] font-bold text-[#031C5B] hover:underline whitespace-nowrap">Marquer Rappelé</button>
                                     </form>
                                 @elseif($contract->reminder_acknowledged_at)

@@ -107,18 +107,23 @@
             </div>
         </div>
 
-        <!-- Aperçu IA -->
+        <!-- Aperçu (données réelles) -->
         <div class="bg-gradient-to-br from-[#F5F3FF] to-purple-50/50 border border-purple-100 rounded-2xl p-6 shadow-sm flex flex-col">
             <div class="flex items-center gap-2 mb-3">
                 <i class="ph-fill ph-sparkle text-purple-600 text-xl"></i>
-                <h3 class="font-extrabold text-slate-800 text-[16px]">Aperçu IA</h3>
+                <h3 class="font-extrabold text-slate-800 text-[16px]">Aperçu</h3>
             </div>
             <p class="text-[13px] text-slate-600 font-medium leading-relaxed flex-1">
-                L'analyse du calendrier scolaire indique une fenêtre optimale pour l'organisation de tournois sportifs entre le <strong>15 et le 25 novembre</strong>, juste après la fin des examens de mi-trimestre. La probabilité de participation étudiante est estimée en hausse de 22% sur cette période.
+                @if($scheduleGap)
+                    Aucun événement planifié pendant {{ $scheduleGap['days'] }} jours à partir du {{ $scheduleGap['from'] }} — une fenêtre disponible pour organiser un nouvel événement.
+                @else
+                    Votre calendrier est déjà bien rempli sur la période à venir — aucune grande fenêtre libre détectée.
+                @endif
+                Taux de participation validée ce mois-ci : <strong>{{ $stats['participation_rate'] }}%</strong>.
             </p>
             <a href="{{ route('school.communication.events.create') }}" class="mt-5 inline-flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2.5 rounded-xl text-[13px] font-bold hover:bg-purple-700 transition">
                 <i class="ph-bold ph-calendar-plus"></i>
-                Planifier sur cette période
+                Planifier un événement
             </a>
         </div>
     </div>

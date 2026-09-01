@@ -26,10 +26,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\SetLanguage::class,
         ]);
+        $middleware->validateCsrfTokens(except: [
+            'subscription/webhook/*',
+        ]);
         $middleware->alias([
             'superadmin' => \App\Http\Middleware\SuperAdminMiddleware::class,
             'school' => \App\Http\Middleware\SchoolMiddleware::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
+            'school-track.access' => \App\Http\Middleware\EnsureSchoolTrackAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

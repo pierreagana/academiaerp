@@ -25,7 +25,7 @@ class GlobalSettingsController extends Controller
             'support_email'        => $settingsRaw['support_email'] ?? 'support@academiaerp.com',
             'support_phone'        => $settingsRaw['support_phone'] ?? '+221 33 800 00 00',
             'openai_api_key'       => $settingsRaw['openai_api_key'] ?? 'sk-proj-491028492019481920',
-            'stripe_secret_key'    => $settingsRaw['stripe_secret_key'] ?? 'sk_live_51M901284019284',
+            'anthropic_api_key'    => $settingsRaw['anthropic_api_key'] ?? '',
             'orange_money_api'     => $settingsRaw['orange_money_api'] ?? 'OM-MERCHANT-88102',
             'primary_theme_color'  => $settingsRaw['primary_theme_color'] ?? '#031C5B',
             'last_automated_backup'=> $settingsRaw['last_automated_backup'] ?? now()->subHours(6)->format('Y-m-d H:i:s'),
@@ -46,6 +46,11 @@ class GlobalSettingsController extends Controller
     public function update(Request $request)
     {
         $data = $request->except(['_token', '_method']);
+
+        if (array_key_exists('phone_country_code', $data) || array_key_exists('phone_number', $data)) {
+            $data['support_phone'] = \App\Modules\SuperAdmin\Domain\Models\Country::combinePhone($data['phone_country_code'] ?? null, $data['phone_number'] ?? null);
+            unset($data['phone_country_code'], $data['phone_number']);
+        }
 
         // Handle checkbox boolean for maintenance_mode
         $data['maintenance_mode'] = $request->has('maintenance_mode') ? 'true' : 'false';

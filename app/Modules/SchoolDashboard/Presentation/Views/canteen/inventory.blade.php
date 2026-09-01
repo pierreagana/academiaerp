@@ -88,15 +88,19 @@
         </div>
 
         <div class="space-y-6">
-            <!-- AI Procurement Insight (décoratif) -->
+            <!-- Approvisionnement (données réelles) -->
             <div class="bg-gradient-to-br from-[#F5F3FF] to-purple-50/50 border border-purple-100 rounded-2xl p-5 shadow-sm">
                 <div class="flex items-center gap-2 mb-2">
                     <i class="ph-fill ph-sparkle text-purple-600 text-lg"></i>
-                    <h3 class="font-extrabold text-slate-800 text-[14px]">Approvisionnement IA</h3>
+                    <h3 class="font-extrabold text-slate-800 text-[14px]">Approvisionnement</h3>
                 </div>
-                <p class="text-[12.5px] text-slate-600 font-medium leading-relaxed">
-                    Surveillez les produits en stock faible ou critique ci-contre et anticipez vos commandes fournisseurs en conséquence.
-                </p>
+                @if($criticalCount + $lowStockCount + $expiringSoonCount === 0)
+                    <p class="text-[12.5px] text-slate-600 font-medium leading-relaxed">Aucun produit en stock faible, critique ou bientôt périmé.</p>
+                @else
+                    <p class="text-[12.5px] text-slate-600 font-medium leading-relaxed">
+                        {{ $criticalCount }} produit(s) critique(s), {{ $lowStockCount }} en stock faible, {{ $expiringSoonCount }} bientôt périmé(s). Anticipez vos commandes fournisseurs en conséquence.
+                    </p>
+                @endif
             </div>
 
             <!-- Manual Adjustment -->

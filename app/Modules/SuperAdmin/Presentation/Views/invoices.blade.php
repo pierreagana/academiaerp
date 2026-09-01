@@ -63,11 +63,35 @@
                 <i class="ph ph-sparkle text-purple-600 text-lg"></i>
                 <h4 class="text-[14px] font-bold text-[#7C3AED]">Analyse IA du Recouvrement</h4>
             </div>
-            <p class="text-[14px] font-medium text-slate-700 leading-relaxed relative z-10">
-                L'assistant IA recommande d'envoyer un rappel automatique par SMS aux factures échues.
+            <p class="text-[14px] font-medium text-slate-700 leading-relaxed relative z-10" id="invoiceAiRecoveryText">
+                Analyse en cours...
             </p>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            fetch('{{ route("superadmin.invoices.ai-recovery-analysis") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                const el = document.getElementById('invoiceAiRecoveryText');
+                if (data.success) {
+                    el.innerText = data.recommendation;
+                } else {
+                    el.innerText = data.error || "Analyse IA indisponible pour le moment.";
+                }
+            })
+            .catch(() => {
+                document.getElementById('invoiceAiRecoveryText').innerText = "Analyse IA indisponible (erreur réseau).";
+            });
+        });
+    </script>
 
     <!-- Table Section -->
     <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-8">

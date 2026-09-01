@@ -6,10 +6,11 @@ use App\Modules\Academic\Domain\Models\Staff;
 use App\Modules\Academic\Domain\Models\Teacher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Expense extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToSchool;
 
     protected $fillable = [
         'school_id',

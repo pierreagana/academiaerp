@@ -20,10 +20,31 @@
                 Tableau de Bord
             </a>
             
+            @if(auth()->user()->isFounder())
+            <a href="{{ route('school.founder.dashboard') }}" class="flex items-center gap-3 px-4 py-2.5 mt-2 font-semibold text-[14px] rounded-xl transition {{ request()->routeIs('school.founder.dashboard') ? 'bg-[#031C5B] text-white shadow-sm' : 'bg-slate-200/60 text-slate-800 hover:bg-slate-200' }}">
+                <i class="ph ph-crown text-lg"></i>
+                Mes Établissements
+            </a>
+            @endif
+
             @if(auth()->user()->canAccess('establishment.manage'))
             <a href="{{ route('school.establishment') }}" class="flex items-center gap-3 px-4 py-2.5 mt-2 font-semibold text-[14px] rounded-xl transition {{ request()->routeIs('school.establishment') ? 'bg-[#031C5B] text-white shadow-sm' : 'bg-slate-200/60 text-slate-800 hover:bg-slate-200' }}">
                 <i class="ph ph-buildings text-lg"></i>
                 Mon Établissement
+            </a>
+            @endif
+
+            @if(auth()->user()->canAccess('establishment.manage'))
+            <a href="{{ route('school.school-track') }}" class="flex items-center gap-3 px-4 py-2.5 mt-2 font-semibold text-[14px] rounded-xl transition {{ request()->routeIs('school.school-track*') ? 'bg-[#031C5B] text-white shadow-sm' : 'bg-slate-200/60 text-slate-800 hover:bg-slate-200' }}">
+                <i class="ph ph-compass text-lg"></i>
+                Profil School Track
+            </a>
+            @endif
+
+            @if(auth()->user()->canAccess('academic.exam-results.manage'))
+            <a href="{{ route('school.exam-results.index') }}" class="flex items-center gap-3 px-4 py-2.5 mt-2 font-semibold text-[14px] rounded-xl transition {{ request()->routeIs('school.exam-results.*') ? 'bg-[#031C5B] text-white shadow-sm' : 'bg-slate-200/60 text-slate-800 hover:bg-slate-200' }}">
+                <i class="ph ph-exam text-lg"></i>
+                Résultats aux examens
             </a>
             @endif
 
@@ -47,6 +68,13 @@
                 <a href="{{ route('school.teacher.attendance-history') }}" class="flex items-center gap-3 px-4 py-2 text-[13.5px] font-medium rounded-lg transition {{ request()->routeIs('school.teacher.attendance-history*') ? 'text-[#031C5B] bg-blue-50/50 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                     <i class="ph ph-fingerprint text-[18px]"></i>
                     Ma Présence
+                </a>
+                @php $myDiplomaCount = \App\Modules\Academic\Domain\Models\Award::where('recipient_type', 'teacher')->where('recipient_id', auth()->user()->teacher->id)->count(); @endphp
+                <a href="{{ route('school.teacher.diplomas') }}" class="flex items-center justify-between gap-3 px-4 py-2 text-[13.5px] font-medium rounded-lg transition {{ request()->routeIs('school.teacher.diplomas*') ? 'text-[#031C5B] bg-blue-50/50 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    <span class="flex items-center gap-3"><i class="ph ph-medal text-[18px]"></i> Mes Diplômes</span>
+                    @if($myDiplomaCount > 0)
+                        <span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{{ $myDiplomaCount }}</span>
+                    @endif
                 </a>
             </div>
         </div>
@@ -176,7 +204,9 @@
                         <a href="{{ route('school.academic.cards.show', 'student') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.academic.cards.show') && request()->route('type') === 'student' ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Carte étudiant</a>
                         <a href="{{ route('school.academic.cards.show', 'staff') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.academic.cards.show') && request()->route('type') === 'staff' ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Carte personnel</a>
                         @endif
-                        <a href="#" class="block px-2 py-1.5 text-[12.5px] font-medium text-slate-500 hover:text-slate-800 transition">Diplôme</a>
+                        @if(auth()->user()->canAccess('academic.awards.manage'))
+                        <a href="{{ route('school.academic.awards.template.edit') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.academic.awards.template.*') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Diplôme</a>
+                        @endif
                     </div>
                 </div>
 
@@ -196,7 +226,8 @@
 
                     <div x-show="open" x-collapse class="pl-9 pr-2 py-1 space-y-1" {!! $isPresenceActive ? '' : 'style="display: none;"' !!}>
                         <a href="{{ route('school.academic.presence.attendance') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.academic.presence.attendance*') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Présence Classe</a>
-                        <a href="{{ route('school.academic.presence.access') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.academic.presence.access*') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Contrôle d'Accès</a>
+                        <a href="{{ route('school.academic.presence.access') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.academic.presence.access') || (request()->routeIs('school.academic.presence.access.*') && !request()->routeIs('school.academic.presence.access.devices*')) ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Contrôle d'Accès</a>
+                        <a href="{{ route('school.academic.presence.access.devices') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.academic.presence.access.devices*') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Appareils de Scan</a>
                     </div>
                 </div>
                 @endif
@@ -210,7 +241,7 @@
                     <button @click="open = !open" class="w-full flex items-center justify-between px-2 py-2 text-[13.5px] font-medium rounded-lg transition {{ $isHomeworkActive ? 'text-[#031C5B] bg-blue-50/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                         <div class="flex items-center gap-3">
                             <i class="ph ph-exam text-[18px]"></i>
-                            Devoirs & Interrogations
+                            <span class="whitespace-nowrap text-[12px]">Devoirs & Interrogations</span>
                         </div>
                         <i class="ph ph-caret-down text-[14px] transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
                     </button>
@@ -284,14 +315,36 @@
                     <i class="ph ph-puzzle-piece text-[18px]"></i>
                     Extensions
                 </a>
+                <a href="{{ route('school.plans') }}" class="flex items-center gap-3 px-4 py-2 text-[13.5px] font-medium rounded-lg transition {{ request()->routeIs('school.plans', 'school.plans.*') ? 'text-[#031C5B] bg-blue-50/50 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    <i class="ph ph-crown-simple text-[18px]"></i>
+                    Forfait
+                </a>
+                <a href="{{ route('school.billing') }}" class="flex items-center gap-3 px-4 py-2 text-[13.5px] font-medium rounded-lg transition {{ request()->routeIs('school.billing', 'school.billing.*') ? 'text-[#031C5B] bg-blue-50/50 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    <i class="ph ph-receipt text-[18px]"></i>
+                    Facturation
+                </a>
+                <a href="{{ route('school.wallet') }}" class="flex items-center gap-3 px-4 py-2 text-[13.5px] font-medium rounded-lg transition {{ request()->routeIs('school.wallet', 'school.wallet.*') ? 'text-[#031C5B] bg-blue-50/50 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    <i class="ph ph-wallet text-[18px]"></i>
+                    Portefeuille Academia Pay
+                </a>
             </div>
         </div>
         @endif
 
         <!-- VIE SCOLAIRE -->
+        @php
+            $canSeeVieScolaireMenu = collect(['academic.awards.manage', 'infirmary.manage', 'canteen.manage', 'library.manage', 'report-card.manage', 'transport.manage'])->contains(fn($slug) => auth()->user()->canAccess($slug));
+        @endphp
+        @if($canSeeVieScolaireMenu)
         <div>
             <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 px-4">Vie Scolaire</h3>
             <div class="space-y-1">
+                @if(auth()->user()->canAccess('academic.awards.manage'))
+                <a href="{{ route('school.academic.awards.index') }}" class="flex items-center gap-3 px-4 py-2 text-[13.5px] font-medium rounded-lg transition {{ request()->routeIs('school.academic.awards.*') ? 'text-[#031C5B] bg-blue-50/50 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    <i class="ph ph-medal text-[18px]"></i>
+                    Récompenses & Diplômes
+                </a>
+                @endif
                 @if(auth()->user()->canAccess('infirmary.manage'))
                 @php
                     $isInfirmaryActive = request()->routeIs('school.infirmary.*');
@@ -329,6 +382,8 @@
                         <a href="{{ route('school.canteen.planning') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.canteen.planning') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Planification</a>
                         <a href="{{ route('school.canteen.inventory') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.canteen.inventory') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Stocks</a>
                         <a href="{{ route('school.canteen.reservations') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.canteen.reservations') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Réservations</a>
+                        <a href="{{ route('school.canteen.requests') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.canteen.requests') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Demandes d'Inscription</a>
+                        <a href="{{ route('school.canteen.scanner') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.canteen.scanner') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Scanner</a>
                     </div>
                 </div>
                 @endif
@@ -390,13 +445,20 @@
                         <a href="{{ route('school.transport.stops') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.transport.stops') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Arrêts de Bus</a>
                         <a href="{{ route('school.transport.trips') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.transport.trips') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Journal des Trajets</a>
                         <a href="{{ route('school.transport.map') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.transport.map') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Carte & Suivi</a>
+                        <a href="{{ route('school.transport.requests') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.transport.requests') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Demandes d'Inscription</a>
+                        <a href="{{ route('school.transport.scanner') }}" class="block px-2 py-1.5 text-[12.5px] font-medium transition {{ request()->routeIs('school.transport.scanner') ? 'text-[#031C5B] font-bold' : 'text-slate-500 hover:text-slate-800' }}">Scanner</a>
                     </div>
                 </div>
                 @endif
             </div>
         </div>
+        @endif
 
         <!-- FINANCES -->
+        @php
+            $canSeeFinancesMenu = collect(['finance.fees.manage', 'finance.expenses.manage', 'finance.scholarships.manage'])->contains(fn($slug) => auth()->user()->canAccess($slug));
+        @endphp
+        @if($canSeeFinancesMenu)
         <div>
             <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 px-4">Finances</h3>
             <div class="space-y-1">
@@ -459,6 +521,7 @@
                 @endif
             </div>
         </div>
+        @endif
 
         <!-- COMMUNICATION -->
         <div>
@@ -497,6 +560,17 @@
                 </a>
             </div>
         </div>
-        
+
+        <!-- SUPPORT -->
+        <div>
+            <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 px-4">Support</h3>
+            <div class="space-y-1">
+                <a href="{{ route('school.support') }}" class="flex items-center gap-3 px-4 py-2 text-[13.5px] font-medium rounded-lg transition {{ request()->routeIs('school.support') ? 'text-[#031C5B] bg-blue-50/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    <i class="ph ph-headset text-[18px]"></i>
+                    Contacter le Support
+                </a>
+            </div>
+        </div>
+
     </nav>
 </aside>

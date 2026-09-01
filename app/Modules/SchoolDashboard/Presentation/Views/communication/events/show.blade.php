@@ -35,14 +35,14 @@
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- IA Prédictive -->
+        <!-- Participation -->
         <div class="bg-gradient-to-br from-[#F5F3FF] to-purple-50/50 border border-purple-100 rounded-2xl p-5 shadow-sm">
             <div class="flex items-center gap-2 mb-3">
-                <i class="ph-fill ph-sparkle text-purple-600 text-lg"></i>
-                <h3 class="font-extrabold text-slate-800 text-[14px]">IA Prédictive</h3>
+                <i class="ph-fill ph-chart-line-up text-purple-600 text-lg"></i>
+                <h3 class="font-extrabold text-slate-800 text-[14px]">Participation</h3>
             </div>
             <p class="text-[12.5px] text-slate-600 font-medium leading-relaxed mb-3">
-                Analyse prédictive basée sur les données météorologiques et l'historique des sorties.
+                Taux d'autorisation parentale calculé sur les inscriptions actuelles.
             </p>
             <div class="space-y-2">
                 <div class="flex items-center gap-2 bg-white/70 rounded-lg px-3 py-2 text-[12.5px] font-bold text-emerald-700">

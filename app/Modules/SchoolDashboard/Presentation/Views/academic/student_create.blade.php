@@ -128,8 +128,38 @@
                                 <i class="ph-bold ph-caret-down absolute right-4 text-slate-400 pointer-events-none transition-transform" :class="focused ? 'rotate-180 text-[#1E40AF]' : ''"></i>
                             </div>
                         </div>
+
+                        <!-- Lieu de naissance -->
+                        <div class="space-y-2">
+                            <label for="birthplace" class="block text-[13.5px] font-bold text-slate-700">Lieu de naissance</label>
+                            <input type="text" id="birthplace" name="birthplace" value="{{ old('birthplace', $student->birthplace ?? '') }}" placeholder="Ex: Abidjan" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 outline-none focus:border-[#1E40AF] focus:ring-4 focus:ring-[#1E40AF]/10 transition-all shadow-sm">
+                        </div>
+
+                        <!-- Nationalité -->
+                        <div class="space-y-2">
+                            <label for="nationality" class="block text-[13.5px] font-bold text-slate-700">Nationalité</label>
+                            <input type="text" id="nationality" name="nationality" value="{{ old('nationality', $student->nationality ?? '') }}" placeholder="Ex: Ivoirienne" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 outline-none focus:border-[#1E40AF] focus:ring-4 focus:ring-[#1E40AF]/10 transition-all shadow-sm">
+                        </div>
+
+                        <!-- Téléphone -->
+                        <div class="space-y-2">
+                            <label for="phone_number" class="block text-[13.5px] font-bold text-slate-700">Téléphone</label>
+                            @php [$studentPhoneCode, $studentPhoneNumber] = \App\Modules\SuperAdmin\Domain\Models\Country::splitPhone($student->phone ?? null); @endphp
+                            @include('SchoolDashboard::components.phone-input', [
+                                'selectedCode' => $studentPhoneCode,
+                                'selectedNumber' => $studentPhoneNumber,
+                                'selectClass' => 'w-[110px] bg-slate-50 border border-slate-200 text-slate-900 text-[13px] font-medium rounded-xl px-2 py-3.5 outline-none focus:border-[#1E40AF] focus:ring-4 focus:ring-[#1E40AF]/10 transition-all cursor-pointer',
+                                'inputClass' => 'flex-1 bg-slate-50 border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 outline-none focus:border-[#1E40AF] focus:ring-4 focus:ring-[#1E40AF]/10 transition-all shadow-sm',
+                            ])
+                        </div>
+
+                        <!-- Adresse -->
+                        <div class="space-y-2">
+                            <label for="address" class="block text-[13.5px] font-bold text-slate-700">Adresse</label>
+                            <input type="text" id="address" name="address" value="{{ old('address', $student->address ?? '') }}" placeholder="Ex: Cocody, Abidjan" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 outline-none focus:border-[#1E40AF] focus:ring-4 focus:ring-[#1E40AF]/10 transition-all shadow-sm">
+                        </div>
                     </div>
-                    
+
                     <!-- Photo Upload -->
                     <div class="mt-10 pt-8 border-t border-slate-100">
                         <label class="block text-[13.5px] font-bold text-slate-700 mb-3 flex items-center justify-between">
@@ -204,8 +234,9 @@
                             <div class="relative flex items-center">
                                 <i class="ph-bold ph-calendar-check absolute left-4 text-[18px] transition-colors z-10" :class="focused ? 'text-[#4F46E5]' : 'text-slate-400'"></i>
                                 <select @focus="focused = true" @blur="focused = false" id="academic_year" name="academic_year" required class="w-full bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl pl-12 pr-10 py-3.5 appearance-none outline-none focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/10 transition-all shadow-sm cursor-pointer">
-                                    <option value="2024-2025" {{ old('academic_year', $student->academic_year ?? '') == '2024-2025' ? 'selected' : '' }}>2024 - 2025</option>
-                                    <option value="2023-2024" {{ old('academic_year', $student->academic_year ?? '') == '2023-2024' ? 'selected' : '' }}>2023 - 2024</option>
+                                    @foreach($academicYears as $year)
+                                        <option value="{{ $year }}" {{ old('academic_year', $student->academic_year ?? '') == $year ? 'selected' : '' }}>{{ str_replace('-', ' - ', $year) }}</option>
+                                    @endforeach
                                 </select>
                                 <i class="ph-bold ph-caret-down absolute right-4 text-slate-400 pointer-events-none transition-transform" :class="focused ? 'rotate-180 text-[#4F46E5]' : ''"></i>
                             </div>
@@ -214,12 +245,55 @@
                         <!-- Matricule -->
                         <div class="md:col-span-2 space-y-2 mt-2">
                             <label class="block text-[13.5px] font-bold text-slate-700">Numéro de matricule</label>
-                            
+
                             <div class="relative flex items-center opacity-75 bg-slate-50 rounded-xl border border-slate-200 p-1">
                                 <i class="ph-bold ph-hash absolute left-4 text-[18px] text-slate-400"></i>
                                 <input type="text" value="{{ $student->roll_number ?? 'Généré automatiquement à la validation' }}" disabled class="w-full bg-transparent text-slate-600 text-[14.5px] font-bold pl-11 pr-4 py-2.5 outline-none cursor-not-allowed">
                                 <div class="absolute right-3 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1.5 rounded uppercase tracking-wider">Automatique</div>
                             </div>
+                        </div>
+
+                        <!-- Numéro de dossier -->
+                        <div class="space-y-2">
+                            <label class="block text-[13.5px] font-bold text-slate-700">Numéro de dossier</label>
+                            <div class="relative flex items-center opacity-75 bg-slate-50 rounded-xl border border-slate-200 p-1">
+                                <i class="ph-bold ph-folder absolute left-4 text-[18px] text-slate-400"></i>
+                                <input type="text" value="{{ $student->dossier_number ?? 'Généré automatiquement à la validation' }}" disabled class="w-full bg-transparent text-slate-600 text-[14.5px] font-bold pl-11 pr-4 py-2.5 outline-none cursor-not-allowed">
+                                <div class="absolute right-3 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1.5 rounded uppercase tracking-wider">Automatique</div>
+                            </div>
+                        </div>
+
+                        <!-- Statut d'inscription -->
+                        <div class="space-y-2">
+                            <label for="enrollment_type" class="block text-[13.5px] font-bold text-slate-700">Statut d'inscription <span class="text-red-500">*</span></label>
+                            <select id="enrollment_type" name="enrollment_type" required class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 appearance-none outline-none focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/10 transition-all shadow-sm cursor-pointer">
+                                @foreach(\App\Modules\Academic\Domain\Models\Student::ENROLLMENT_TYPES as $key => $label)
+                                    <option value="{{ $key }}" {{ old('enrollment_type', $student->enrollment_type ?? 'new') == $key ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Régime -->
+                        <div class="space-y-2">
+                            <label for="regime" class="block text-[13.5px] font-bold text-slate-700">Régime</label>
+                            <select id="regime" name="regime" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 appearance-none outline-none focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/10 transition-all shadow-sm cursor-pointer">
+                                <option value="">Non précisé</option>
+                                @foreach(\App\Modules\Academic\Domain\Models\Student::REGIMES as $key => $label)
+                                    <option value="{{ $key }}" {{ old('regime', $student->regime ?? '') == $key ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Date d'inscription -->
+                        <div class="space-y-2">
+                            <label for="enrollment_date" class="block text-[13.5px] font-bold text-slate-700">Date d'inscription</label>
+                            <input type="date" id="enrollment_date" name="enrollment_date" value="{{ old('enrollment_date', isset($student->enrollment_date) ? $student->enrollment_date->format('Y-m-d') : '') }}" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 outline-none focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/10 transition-all shadow-sm">
+                        </div>
+
+                        <!-- Date d'entrée -->
+                        <div class="space-y-2">
+                            <label for="entry_date" class="block text-[13.5px] font-bold text-slate-700">Date d'entrée</label>
+                            <input type="date" id="entry_date" name="entry_date" value="{{ old('entry_date', isset($student->entry_date) ? $student->entry_date->format('Y-m-d') : '') }}" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14.5px] font-medium rounded-xl px-4 py-3.5 outline-none focus:border-[#4F46E5] focus:ring-4 focus:ring-[#4F46E5]/10 transition-all shadow-sm">
                         </div>
                     </div>
                 </div>
@@ -243,7 +317,7 @@
                     open: false,
                     saving: false,
                     error: null,
-                    form: { name: '', relation: '', phone: '', email: '' },
+                    form: { name: '', relation: '', phone_country_code: '+225', phone_number: '', email: '' },
                     async submit() {
                         this.saving = true;
                         this.error = null;
@@ -270,7 +344,7 @@
                                 <span class=\'text-[13px] font-semibold text-slate-700\'>${data.guardian.name} <span class=\'text-slate-400 font-normal\'>(${labels[data.guardian.relation] || data.guardian.relation})</span></span>`;
                             list.appendChild(label);
                             document.getElementById('no-guardian-note')?.remove();
-                            this.form = { name: '', relation: '', phone: '', email: '' };
+                            this.form = { name: '', relation: '', phone_country_code: '+225', phone_number: '', email: '' };
                             this.open = false;
                         } catch (e) {
                             this.error = 'Impossible de contacter le serveur.';
@@ -334,7 +408,14 @@
                             </div>
                             <div>
                                 <label class="block text-[12px] font-bold text-slate-600 mb-1">Téléphone</label>
-                                <input type="text" x-model="form.phone" placeholder="Ex: 0102030405" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[13.5px] rounded-lg px-3 py-2.5 outline-none focus:border-[#1E40AF]">
+                                <div class="flex gap-2">
+                                    <select x-model="form.phone_country_code" class="w-[100px] bg-slate-50 border border-slate-200 text-slate-900 text-[12.5px] rounded-lg px-2 py-2.5 outline-none focus:border-[#1E40AF] cursor-pointer">
+                                        @foreach(\App\Modules\SuperAdmin\Domain\Models\Country::orderBy('order')->get() as $c)
+                                            <option value="{{ $c->dial_code }}">{{ $c->flag_emoji }} {{ $c->dial_code }}</option>
+                                        @endforeach
+                                    </select>
+                                    <input type="text" x-model="form.phone_number" placeholder="Ex: 0102030405" class="flex-1 bg-slate-50 border border-slate-200 text-slate-900 text-[13.5px] rounded-lg px-3 py-2.5 outline-none focus:border-[#1E40AF]">
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-[12px] font-bold text-slate-600 mb-1">Email (optionnel)</label>
@@ -344,7 +425,7 @@
 
                         <div class="flex items-center gap-2 mt-6">
                             <button type="button" @click="open = false" class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[13px] rounded-xl transition">Annuler</button>
-                            <button type="button" @click="submit()" :disabled="saving || !form.name || !form.relation || !form.phone" :class="saving || !form.name || !form.relation || !form.phone ? 'opacity-50 cursor-not-allowed' : ''" class="flex-1 px-4 py-2.5 bg-[#1E40AF] hover:bg-[#1E40AF]/90 text-white font-bold text-[13px] rounded-xl transition">
+                            <button type="button" @click="submit()" :disabled="saving || !form.name || !form.relation || !form.phone_number" :class="saving || !form.name || !form.relation || !form.phone_number ? 'opacity-50 cursor-not-allowed' : ''" class="flex-1 px-4 py-2.5 bg-[#1E40AF] hover:bg-[#1E40AF]/90 text-white font-bold text-[13px] rounded-xl transition">
                                 <span x-show="!saving">Créer</span>
                                 <span x-show="saving">Création...</span>
                             </button>

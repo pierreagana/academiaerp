@@ -5,13 +5,15 @@ namespace App\Modules\SuperAdmin\Presentation\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use App\Modules\SuperAdmin\Application\UseCases\ListAIModelsUseCase;
+use App\Modules\SuperAdmin\Application\Services\AIService;
 use App\Modules\SuperAdmin\Domain\Models\AIModel;
 use App\Modules\SuperAdmin\Domain\Models\GlobalSetting;
 
 class AIModelsController extends Controller
 {
     public function __construct(
-        private ListAIModelsUseCase $listAIModelsUseCase
+        private ListAIModelsUseCase $listAIModelsUseCase,
+        private AIService $aiService,
     ) {}
 
     public function index()
@@ -29,6 +31,7 @@ class AIModelsController extends Controller
                 'status_label' => $aiModel->status_label ?? 'Actif (LLM)',
                 'latency'      => $aiModel->latency ?? '45ms',
                 'color'        => $aiModel->color ?? 'emerald',
+                'is_real'      => true,
             ];
         }
 
@@ -42,6 +45,7 @@ class AIModelsController extends Controller
                     'status_label' => 'Actif (Tuteur Virtuel)',
                     'latency'      => '42ms',
                     'color'        => 'emerald',
+                    'is_real'      => false,
                 ],
                 [
                     'id'           => 2,
@@ -51,6 +55,7 @@ class AIModelsController extends Controller
                     'status_label' => 'Haute Vitesse',
                     'latency'      => '18ms',
                     'color'        => 'violet',
+                    'is_real'      => false,
                 ],
                 [
                     'id'           => 3,
@@ -60,6 +65,7 @@ class AIModelsController extends Controller
                     'status_label' => 'Saisie Auto Bulletins',
                     'latency'      => '65ms',
                     'color'        => 'emerald',
+                    'is_real'      => false,
                 ],
             ];
         }
@@ -90,12 +96,23 @@ class AIModelsController extends Controller
             ],
         ];
 
-        // 3. API Keys
-        $apiKeys = [
-            ['provider' => 'Google Cloud Vertex / AI Studio', 'key_hint' => 'AIzaSy********************4kQ8'],
-            ['provider' => 'Anthropic Claude API', 'key_hint' => 'sk-ant-api03-********************x9aP'],
-            ['provider' => 'OpenAI GPT Gateway', 'key_hint' => 'sk-proj-********************1aB3'],
-        ];
+        // 3. Real API key status for both providers the app can call through
+        // AIService. Keys themselves are configured in Global Settings, not
+        // here; this page only reflects and tests their current state, plus
+        // which one is currently selected to actually handle requests.
+        $openAiKeyValue = GlobalSetting::where('key', 'openai_api_key')->value('value');
+        $openAiKeyConfigured = !empty($openAiKeyValue);
+        $openAiKeyHint = $openAiKeyConfigured
+            ? substr($openAiKeyValue, 0, 6) . str_repeat('•', 12) . substr($openAiKeyValue, -4)
+            : null;
+
+        $anthropicKeyValue = GlobalSetting::where('key', 'anthropic_api_key')->value('value');
+        $anthropicKeyConfigured = !empty($anthropicKeyValue);
+        $anthropicKeyHint = $anthropicKeyConfigured
+            ? substr($anthropicKeyValue, 0, 6) . str_repeat('•', 12) . substr($anthropicKeyValue, -4)
+            : null;
+
+        $activeProvider = $this->aiService->activeProvider();
 
         // 4. Performance Thresholds from SQL table `global_settings`
         $latencyThresh = GlobalSetting::where('key', 'ai_max_latency_threshold')->first();
@@ -120,24 +137,12 @@ class AIModelsController extends Controller
             ],
         ];
 
-        // 5. Token allocation & training log
-        $tokenAllocation = [
-            ['region' => 'Afrique Centrale (Douala / Yaoundé)', 'pct' => 45, 'tier' => '1.8M Tokens / mois', 'color' => 'indigo'],
-            ['region' => 'Afrique de l\'Ouest (Dakar / Abidjan)', 'pct' => 30, 'tier' => '1.2M Tokens / mois', 'color' => 'violet'],
-            ['region' => 'Établissements Pilotes IA', 'pct' => 15, 'tier' => '600K Tokens / mois', 'color' => 'sky'],
-            ['region' => 'Réservation & Secours', 'pct' => 10, 'tier' => '400K Tokens / mois', 'color' => 'emerald'],
-        ];
-
-        $trainingLog = [
-            ['date' => date('d/m/Y'), 'model' => 'Gemini 1.5 Pro', 'operation' => 'Fine-tuning Bulletins & Relevés FR', 'status' => 'success', 'initiator' => 'SuperAdmin System'],
-            ['date' => '05/08/2026', 'model' => 'Academia OCR LLM', 'operation' => 'Mise à jour dictionnaire de notes', 'status' => 'success', 'initiator' => 'IA Auto Trainer'],
-            ['date' => '01/08/2026', 'model' => 'Gemini Flash', 'operation' => 'Optimisation du temps de réponse', 'status' => 'success', 'initiator' => 'SuperAdmin System'],
-        ];
-
         $lastDeployedAt = GlobalSetting::where('key', 'ai_last_deployed_at')->value('value');
 
         return view('SuperAdmin::ai-models', compact(
-            'models', 'globalParams', 'apiKeys', 'perfThresholds', 'tokenAllocation', 'trainingLog', 'lastDeployedAt'
+            'models', 'globalParams', 'perfThresholds', 'lastDeployedAt',
+            'openAiKeyConfigured', 'openAiKeyHint',
+            'anthropicKeyConfigured', 'anthropicKeyHint', 'activeProvider'
         ));
     }
 
@@ -161,6 +166,24 @@ class AIModelsController extends Controller
         ]);
 
         return redirect()->route('superadmin.ai-models')->with('success', 'Nouveau modèle IA enregistré et appliqué dans la base SQL !');
+    }
+
+    /**
+     * Marks one catalog entry active/disabled — this only affects how it's
+     * displayed and counted, since nothing in the app currently routes AI
+     * calls based on this table (the one real integration, the support
+     * ticket draft, always uses OpenAI directly).
+     */
+    public function toggleModelStatus(int $id)
+    {
+        $model = AIModel::findOrFail($id);
+        $model->status = $model->status === 'active' ? 'disabled' : 'active';
+        $model->save();
+
+        return redirect()->route('superadmin.ai-models')->with(
+            'success',
+            $model->name . ' ' . ($model->status === 'active' ? 'activé' : 'désactivé') . '.'
+        );
     }
 
     public function toggleSetting(Request $request)
@@ -214,6 +237,38 @@ class AIModelsController extends Controller
 
         AIModel::where('status', '!=', 'disabled')->update(['status' => 'active']);
 
-        return redirect()->route('superadmin.ai-models')->with('success', 'Toutes les configurations des modèles IA ont été appliquées et déployées en temps réel sur le cluster SQL !');
+        return redirect()->route('superadmin.ai-models')->with('success', 'Configuration enregistrée.');
+    }
+
+    /**
+     * Performs a real call against the given provider's API to verify the
+     * key actually works — unlike the rest of this page, this one talks to
+     * the real provider and reports what actually happened.
+     */
+    public function testConnection(Request $request)
+    {
+        $validated = $request->validate([
+            'provider' => 'required|string|in:openai,claude',
+        ]);
+
+        return response()->json($this->aiService->testConnection($validated['provider']));
+    }
+
+    /**
+     * Which provider (OpenAI or Claude) actually handles AI requests
+     * app-wide — everything calling AIService::generateText() routes here.
+     */
+    public function setProvider(Request $request)
+    {
+        $validated = $request->validate([
+            'provider' => 'required|string|in:openai,claude',
+        ]);
+
+        GlobalSetting::updateOrCreate(
+            ['key' => 'ai_provider'],
+            ['value' => $validated['provider'], 'type' => 'string', 'is_public' => false]
+        );
+
+        return response()->json(['success' => true, 'message' => 'Fournisseur IA mis à jour.']);
     }
 }

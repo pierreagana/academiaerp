@@ -21,7 +21,6 @@
         <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm">
             <div class="p-5 border-b border-slate-100 flex items-center justify-between">
                 <h3 class="text-[16px] font-bold text-[#031C5B] flex items-center gap-2"><i class="ph-bold ph-sliders-horizontal"></i> Règles de Circulation</h3>
-                <span class="px-2.5 py-1 bg-purple-50 text-purple-600 rounded-full text-[10.5px] font-bold uppercase tracking-wider">Optimisé par IA</span>
             </div>
             <form action="{{ route('school.library.settings.rules.update') }}" method="POST" class="p-5 space-y-5">
                 @csrf
@@ -29,7 +28,7 @@
                     <div class="space-y-1.5">
                         <label class="block text-[13px] font-bold text-slate-700">Max livres par élève</label>
                         <input type="number" name="max_books_per_student" min="1" value="{{ old('max_books_per_student', $settings->max_books_per_student) }}" required class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14px] rounded-lg px-4 py-2.5 outline-none focus:border-[#031C5B]">
-                        <p class="text-[11px] text-slate-400">Augmente l'engagement selon les données historiques.</p>
+                        <p class="text-[11px] text-slate-400">Un nouvel emprunt sera refusé au-delà de cette limite.</p>
                     </div>
                     <div class="space-y-1.5">
                         <label class="block text-[13px] font-bold text-slate-700">Durée du prêt (jours)</label>
@@ -71,10 +70,6 @@
                     <span class="text-[13px] text-slate-500 font-semibold">Emprunts en Retard</span>
                     <span class="text-[18px] font-extrabold text-red-600">{{ number_format($systemStatus['overdue_returns'], 0, ',', ' ') }}</span>
                 </div>
-            </div>
-            <div class="mt-5 bg-blue-50/60 border border-blue-100 rounded-xl p-3.5 flex items-start gap-2.5">
-                <i class="ph-fill ph-trend-up text-blue-500 mt-0.5"></i>
-                <p class="text-[12px] text-slate-600">L'IA prédit une hausse de 15% des emprunts si les pénalités sont réduites pour les petites classes.</p>
             </div>
         </div>
     </div>

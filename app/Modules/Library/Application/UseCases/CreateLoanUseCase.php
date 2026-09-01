@@ -3,6 +3,7 @@
 namespace App\Modules\Library\Application\UseCases;
 
 use App\Modules\Library\Application\DTOs\CreateLoanDTO;
+use App\Modules\Library\Domain\Models\Loan;
 use App\Modules\Library\Domain\Repositories\BookRepositoryInterface;
 use App\Modules\Library\Domain\Repositories\LibrarySettingRepositoryInterface;
 use App\Modules\Library\Domain\Repositories\LoanRepositoryInterface;
@@ -33,6 +34,20 @@ class CreateLoanUseCase
         }
 
         $settings = $this->settingRepository->getForSchool($book->school_id);
+
+        if ($settings->max_books_per_student) {
+            $activeLoans = Loan::where('school_id', $book->school_id)
+                ->where('borrower_type', $dto->data['borrower_type'])
+                ->where('borrower_id', $dto->data['borrower_id'])
+                ->whereNull('returned_at')
+                ->count();
+
+            if ($activeLoans >= $settings->max_books_per_student) {
+                throw new RuntimeException(
+                    "Cet emprunteur a déjà atteint la limite de {$settings->max_books_per_student} livre(s) emprunté(s) simultanément."
+                );
+            }
+        }
 
         $loan = $this->loanRepository->create([
             'school_id' => $book->school_id,

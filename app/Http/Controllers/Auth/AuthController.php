@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Modules\SuperAdmin\Domain\Models\School;
 
@@ -81,58 +80,78 @@ class AuthController extends Controller
 
     public function showRegistrationForm()
     {
-        return view('SchoolDashboard::auth.register_staff');
+        $facilities = \App\Modules\SuperAdmin\Domain\Models\Facility::where('is_active', true)->orderBy('order')->orderBy('name')->get();
+        $availableSectors = School::getAvailableSectors();
+        $availableLevels = School::getAvailableLevels();
+        $availableLanguageRegimes = School::getAvailableLanguageRegimes();
+        $saasPackages = \App\Modules\SuperAdmin\Domain\Models\SaasPackage::orderBy('price')->get();
+
+        return view('SchoolDashboard::auth.register_staff', compact(
+            'facilities', 'availableSectors', 'availableLevels', 'availableLanguageRegimes', 'saasPackages'
+        ));
     }
 
+    /**
+     * Public "Demande de Démo" submission — does NOT provision the school or
+     * log anyone in. It records a pending RegistrationRequest for a SuperAdmin
+     * to review; the school and admin account only get created once
+     * RegistrationRequestController::approve() runs. See that method for the
+     * mirror image of the field mapping below.
+     */
     public function register(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'school_name' => ['required', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:255'],
+            'phone_country_code' => ['nullable', 'string'],
+            'phone_number' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'type' => ['nullable', 'string', 'max:100'],
+            'sector' => ['nullable', 'string', 'max:100'],
+            'language_regime' => ['nullable', 'string', 'max:100'],
+            'levels' => ['nullable', 'array'],
+            'levels.*' => ['string', 'max:100'],
             'plan_name' => ['nullable', 'string'],
+            'students_count' => ['nullable', 'integer', 'min:0'],
             'slogan' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'country' => ['nullable', 'string', 'exists:countries,name'],
             'address' => ['nullable', 'string', 'max:255'],
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
+            'facilities' => ['nullable', 'array'],
+            'facilities.*' => ['integer', 'exists:facilities,id'],
         ]);
 
-        $logoUrl = null;
-        if ($request->hasFile('logo')) {
-            $path = $request->file('logo')->store('logos', 'public');
-            $logoUrl = Storage::url($path);
-        }
-        $cleanName = preg_replace('/[^A-Za-z0-9]/', '', \Illuminate\Support\Str::ascii($request->school_name));
-        $code = 'ACAD-' . strtoupper(substr($cleanName, 0, 3)) . rand(1000, 9999);
+        $logoPath = $request->hasFile('logo') ? $request->file('logo')->store('logos/pending', 'public') : null;
 
-        $school = School::create([
-            'name' => $request->school_name,
-            'code' => $code,
-            'plan_name' => $request->plan_name,
+        $region = collect([$validated['city'] ?? null, $validated['country'] ?? null])->filter()->implode(', ');
+
+        \App\Modules\SuperAdmin\Domain\Models\RegistrationRequest::create([
+            'school_name' => $request->school_name,
+            'applicant_name' => $request->name,
+            'email' => $request->email,
+            'phone' => \App\Modules\SuperAdmin\Domain\Models\Country::combinePhone($validated['phone_country_code'] ?? null, $validated['phone_number']),
+            'region' => $region ?: null,
+            'status' => 'en attente',
+            'plan_requested' => $validated['plan_name'] ?? 'Starter',
+            'type' => $validated['type'] ?? null,
+            'sector' => $validated['sector'] ?? null,
+            'language_regime' => $validated['language_regime'] ?? null,
+            'levels' => $validated['levels'] ?? null,
+            'students_count' => $validated['students_count'] ?? null,
             'slogan' => $request->slogan,
-            'location' => $request->address,
+            'city' => $validated['city'] ?? null,
+            'country' => $validated['country'] ?? null,
+            'address' => $request->address,
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
-            'contact_email' => $request->email,
-            'contact_phone' => $request->phone,
-            'logo_url' => $logoUrl,
-            'status' => 'active',
+            'logo_path' => $logoPath,
+            'facilities' => $validated['facilities'] ?? null,
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => 'adminschool',
-            'school_id' => $school->id,
-        ]);
-
-        Auth::login($user);
-
-        return redirect(route('school.dashboard'));
+        return redirect('/')->with('registration_submitted', true);
     }
 
     public function logout(Request $request)

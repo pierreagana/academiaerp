@@ -99,8 +99,12 @@
                 @endforeach
 
                 <div class="bg-purple-50/60 border border-purple-100 rounded-xl p-4">
-                    <p class="text-[11px] font-extrabold text-purple-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-sparkle"></i> Insight IA</p>
-                    <p class="text-[12.5px] text-slate-700 leading-relaxed">Sur la base de cas similaires récents, pensez à vérifier une éventuelle allergie saisonnière locale.</p>
+                    <p class="text-[11px] font-extrabold text-purple-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5"><i class="ph-fill ph-sparkle"></i> Insight</p>
+                    @if($topMotiveThisWeek)
+                        <p class="text-[12.5px] text-slate-700 leading-relaxed">Motif le plus fréquent cette semaine : <strong>{{ $topMotiveThisWeek }}</strong> ({{ $topMotiveCount }} cas).</p>
+                    @else
+                        <p class="text-[12.5px] text-slate-700 leading-relaxed">Aucune intervention enregistrée cette semaine pour le moment.</p>
+                    @endif
                 </div>
 
                 <button type="submit" class="w-full py-3.5 bg-[#031C5B] text-white font-bold text-[14px] rounded-xl hover:bg-[#031C5B]/90 transition shadow-sm">

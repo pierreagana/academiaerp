@@ -9,7 +9,22 @@ class Timetable extends Model
 {
     use SoftDeletes;
     
-    protected $fillable = ['academic_class_id', 'subject_id', 'teacher_id', 'room_id', 'day_of_week', 'start_time', 'end_time', 'status'];
+    protected $fillable = [
+        'academic_class_id',
+        'semester_id',
+        'valid_from',
+        'subject_id',
+        'teacher_id',
+        'room_id',
+        'day_of_week',
+        'start_time',
+        'end_time',
+        'status',
+    ];
+
+    protected $casts = [
+        'valid_from' => 'date',
+    ];
 
     public function academicClass()
     {
@@ -29,5 +44,10 @@ class Timetable extends Model
     public function room()
     {
         return $this->belongsTo(Room::class);
+    }
+
+    public function semester()
+    {
+        return $this->belongsTo(Semester::class);
     }
 }

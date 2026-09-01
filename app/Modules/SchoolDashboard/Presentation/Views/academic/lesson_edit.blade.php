@@ -53,7 +53,13 @@
                 </div>
 
                 <!-- Leçons -->
-                <div class="md:col-span-2 bg-slate-50 rounded-lg p-4 border border-slate-200" x-data="{ lesson_titles: {{ json_encode(old('lesson_titles', $lesson->lesson_titles ?? [''])) }} }">
+                @php
+                    $rawTitles = array_map(fn($item) => is_array($item) ? ($item['title'] ?? '') : (is_string($item) ? $item : ''), $lesson->sub_lessons);
+                    if (empty($rawTitles)) {
+                        $rawTitles = [''];
+                    }
+                @endphp
+                <div class="md:col-span-2 bg-slate-50 rounded-lg p-4 border border-slate-200" x-data="{ lesson_titles: {{ json_encode(old('lesson_titles', $rawTitles)) }} }">
                     <label class="block text-[13px] font-semibold text-slate-700 mb-3">Leçons contenues dans ce chapitre <span class="text-red-500">*</span></label>
                     <div class="space-y-3">
                         <template x-for="(title, tIndex) in lesson_titles" :key="tIndex">

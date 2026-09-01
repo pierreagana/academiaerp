@@ -72,6 +72,15 @@
                                 <td class="px-5 py-4">
                                     <p class="font-bold text-slate-800">{{ $assignment->title }}</p>
                                     <p class="text-[11.5px] text-slate-400">{{ $assignment->subject->name ?? '—' }} &middot; {{ $assignment->academicClass->name ?? '—' }}</p>
+                                    @if($assignment->evaluationType)
+                                        <span class="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded mt-1">
+                                            <i class="ph-bold ph-link"></i> Bulletin : {{ $assignment->evaluationType->name }} (coef. {{ rtrim(rtrim(number_format($assignment->evaluationType->coefficient, 2), '0'), '.') }})
+                                        </span>
+                                    @else
+                                        <span class="inline-block text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded mt-1">
+                                            Devoir libre (hors bulletin)
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-5 py-4 text-slate-500">{{ $assignment->scheduled_at->translatedFormat('d M, H\hi') }}</td>
                                 <td class="px-5 py-4">
@@ -83,8 +92,13 @@
                                     </div>
                                 </td>
                                 <td class="px-5 py-4"><span class="px-2.5 py-1 rounded-full text-[11px] font-bold {{ $badge }}">{{ $label }}</span></td>
-                                <td class="px-5 py-4 text-right">
+                                <td class="px-5 py-4 text-right space-x-3">
                                     <a href="{{ route('school.academic.homework.submissions', $assignment->id) }}" class="text-[12px] font-bold text-[#031C5B] hover:underline">Noter</a>
+                                    <form action="{{ route('school.academic.homework.destroy', $assignment->id) }}" method="POST" class="inline" onsubmit="return confirm('Supprimer ce devoir « {{ addslashes($assignment->title) }} » ?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-[12px] font-bold text-red-400 hover:text-red-600 transition">Supprimer</button>
+                                    </form>
                                 </td>
                             </tr>
                         @empty

@@ -53,12 +53,21 @@
         </form>
     </div>
 
-    <!-- AI Insight -->
+    <!-- Insight (données réelles) -->
     <div class="bg-purple-50/60 border border-purple-100 rounded-2xl p-4 flex items-start gap-3">
         <div class="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 shrink-0"><i class="ph-fill ph-lightbulb text-lg"></i></div>
         <div>
-            <p class="text-[11px] font-extrabold text-purple-600 uppercase tracking-wider mb-1">Insight IA</p>
-            <p class="text-[13px] text-slate-700">La demande d'ouvrages liés au programme scolaire en cours peut fluctuer fortement selon le calendrier des cours. Pensez à vérifier régulièrement les niveaux de stock des titres les plus demandés.</p>
+            <p class="text-[11px] font-extrabold text-purple-600 uppercase tracking-wider mb-1">Insight</p>
+            <p class="text-[13px] text-slate-700">
+                @if($topBook)
+                    Titre le plus emprunté ces 30 derniers jours : <strong>{{ $topBook->title }}</strong>.
+                @else
+                    Aucun emprunt enregistré ces 30 derniers jours.
+                @endif
+                @if($outOfStockCount > 0)
+                    {{ $outOfStockCount }} titre(s) actuellement en rupture de stock.
+                @endif
+            </p>
         </div>
     </div>
 

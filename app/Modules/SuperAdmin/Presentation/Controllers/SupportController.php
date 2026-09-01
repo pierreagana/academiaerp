@@ -5,6 +5,7 @@ namespace App\Modules\SuperAdmin\Presentation\Controllers;
 use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
 use App\Modules\SuperAdmin\Domain\Models\SupportTicket;
+use App\Modules\SuperAdmin\Domain\Models\SupportTicketMessage;
 
 class SupportController extends Controller
 {
@@ -57,13 +58,20 @@ class SupportController extends Controller
 
         $ticket = SupportTicket::findOrFail($id);
 
+        SupportTicketMessage::create([
+            'support_ticket_id' => $ticket->id,
+            'sender_type' => SupportTicketMessage::SENDER_SUPPORT,
+            'sender_name' => auth()->user()->name ?? 'Support AcademiaERP',
+            'message' => $request->input('reply'),
+        ]);
+
         if ($ticket->status === 'open') {
             $ticket->update(['status' => 'in_progress']);
         }
 
         return redirect()
             ->route('superadmin.support', ['ticket' => $id])
-            ->with('success', 'Réponse envoyée au ticket #' . $ticket->ticket_id . '. Statut mis à jour → En cours.');
+            ->with('success', 'Réponse envoyée à ' . $ticket->school_name . ' pour le ticket #' . $ticket->ticket_id . '.');
     }
 
     public function close(Request $request, int $id)
@@ -80,12 +88,12 @@ class SupportController extends Controller
     {
         $ticket = SupportTicket::findOrFail($id);
         
-        $draft = $aiService->generateSupportDraft(
+        $result = $aiService->generateSupportDraft(
             $ticket->subject ?? 'Sans sujet',
             $ticket->description ?? 'Aucune description',
             $ticket->school_name ?? 'École non spécifiée'
         );
 
-        return response()->json(['draft' => $draft]);
+        return response()->json($result);
     }
 }

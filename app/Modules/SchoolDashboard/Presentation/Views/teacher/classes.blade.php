@@ -2,12 +2,41 @@
 
 @section('content')
 <div class="space-y-6">
+    @if(session('success'))
+    <div class="p-4 text-sm text-green-800 rounded-lg bg-green-50 flex items-center gap-2" role="alert">
+        <i class="ph-fill ph-check-circle text-lg"></i>
+        <span class="font-medium">{{ session('success') }}</span>
+    </div>
+    @endif
+    @if(session('error'))
+    <div class="p-4 text-sm text-red-800 rounded-lg bg-red-50 flex items-center gap-2" role="alert">
+        <i class="ph-fill ph-warning-circle text-lg"></i>
+        <span class="font-medium">{{ session('error') }}</span>
+    </div>
+    @endif
+
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h2 class="text-[32px] font-bold text-[#031C5B] tracking-tight">Mes Classes</h2>
             <p class="text-slate-600 text-[15px] font-medium mt-1">Vue d'ensemble de vos classes et de vos élèves.</p>
         </div>
     </div>
+
+    @if($latestDiploma)
+    <a href="{{ route('school.teacher.diplomas') }}" class="flex items-center gap-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 hover:border-indigo-200 transition">
+        <span class="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0"><i class="ph-fill ph-medal text-[22px]"></i></span>
+        <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+                <p class="text-[13.5px] font-extrabold text-slate-900">Dernier diplôme reçu</p>
+                <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-indigo-600 text-white">Nouveau</span>
+            </div>
+            <p class="text-[13px] text-slate-600 truncate">{{ $latestDiploma->type->name ?? '—' }} &middot; {{ $latestDiploma->awarded_date->format('d/m/Y') }}</p>
+        </div>
+        @if($diplomaCount > 1)
+            <span class="shrink-0 text-[11.5px] font-bold px-2.5 py-1.5 rounded-full bg-white text-indigo-700 border border-indigo-200 whitespace-nowrap">Voir les {{ $diplomaCount }}</span>
+        @endif
+    </a>
+    @endif
 
     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <div class="flex items-center gap-2 mb-4">
@@ -32,6 +61,8 @@
                             @else
                                 <span class="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap">Pointé</span>
                             @endif
+                        @elseif($item['missed'])
+                            <span class="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-red-50 text-red-700 whitespace-nowrap" title="Non pointé dans l'heure suivant le début du cours — appel indisponible pour cette séance.">Absent</span>
                         @else
                             <form action="{{ route('school.teacher.checkin') }}" method="POST" class="shrink-0">
                                 @csrf
@@ -79,7 +110,11 @@
                 </div>
 
                 <div class="flex gap-2">
-                    @if($card['teachesToday'] && !$card['checkedInToday'])
+                    @if(!$card['teachesToday'])
+                        <span title="Vous n'avez pas cours avec cette classe aujourd'hui." class="flex-1 text-center bg-slate-100 text-slate-400 font-bold text-[12.5px] px-4 py-2.5 rounded-lg flex items-center justify-center gap-1.5 cursor-not-allowed">
+                            <i class="ph-bold ph-calendar-x"></i> Appel
+                        </span>
+                    @elseif(!$card['checkedInToday'])
                         <span title="Pointez votre présence pour ce cours avant de faire l'appel." class="flex-1 text-center bg-slate-100 text-slate-400 font-bold text-[12.5px] px-4 py-2.5 rounded-lg flex items-center justify-center gap-1.5 cursor-not-allowed">
                             <i class="ph-bold ph-lock-simple"></i> Appel
                         </span>
@@ -92,7 +127,9 @@
                         <i class="ph-bold ph-calendar"></i> Planning
                     </a>
                 </div>
-                @if($card['teachesToday'] && !$card['checkedInToday'])
+                @if(!$card['teachesToday'])
+                    <p class="text-[11px] text-slate-400 font-semibold mt-2">Pas de cours avec cette classe aujourd'hui.</p>
+                @elseif(!$card['checkedInToday'])
                     <p class="text-[11px] text-amber-600 font-semibold mt-2">Pointez votre présence ci-dessus avant de faire l'appel.</p>
                 @endif
             </div>

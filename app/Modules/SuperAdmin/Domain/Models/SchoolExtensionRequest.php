@@ -4,9 +4,11 @@ namespace App\Modules\SuperAdmin\Domain\Models;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class SchoolExtensionRequest extends Model
 {
+    use BelongsToSchool;
     protected $fillable = [
         'school_id',
         'module_name',

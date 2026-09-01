@@ -54,7 +54,11 @@ class BackupsController extends Controller
             'next_backup_at'         => now()->addHours(4)->format('d/m/Y 02:00'),
         ];
 
-        return view('SuperAdmin::backups', compact('snapshots', 'storage', 'schedule'));
+        $backupCount = $backupsData->count();
+        $lastBackupAt = $backupsData->first()?->created_at;
+        $lastBackupAt = is_string($lastBackupAt) ? \Carbon\Carbon::parse($lastBackupAt) : $lastBackupAt;
+
+        return view('SuperAdmin::backups', compact('snapshots', 'storage', 'schedule', 'backupCount', 'lastBackupAt'));
     }
 
     public function trigger(Request $request)

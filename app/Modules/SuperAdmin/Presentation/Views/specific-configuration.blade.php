@@ -109,7 +109,7 @@
                 </div>
             </div>
 
-            <!-- SECTION 2: Passerelles de Paiement Globales -->
+            <!-- SECTION 2: Moyens d'Encaissement des Frais Scolaires -->
             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6">
                 <!-- Header -->
                 <div class="flex items-center justify-between mb-4">
@@ -118,8 +118,12 @@
                             <i class="ph ph-credit-card text-xl"></i>
                         </div>
                         <div>
-                            <h3 class="font-bold text-slate-900 text-sm">Passerelles de Paiement Globales</h3>
-                            <p class="text-[11px] text-slate-500">Activation des moyens d'encaissement et frais</p>
+                            <h3 class="font-bold text-slate-900 text-sm">Moyens d'Encaissement des Frais Scolaires</h3>
+                            <p class="text-[11px] text-slate-500">
+                                Ce que les parents peuvent utiliser pour payer les frais d'une école — à ne pas confondre avec
+                                <a href="{{ route('superadmin.payment-gateways') }}" class="text-indigo-600 font-semibold hover:underline">Passerelles de Paiement</a>,
+                                qui concerne la facturation de l'abonnement SaaS des écoles à la plateforme.
+                            </p>
                         </div>
                     </div>
                     <span class="bg-blue-100/70 text-blue-800 border border-blue-200/60 text-[11px] font-semibold px-3 py-1 rounded-full">Environnement de Production</span>
@@ -134,77 +138,57 @@
                         
                         <div class="space-y-2.5">
                             <!-- Academia Pay (Natif) -->
-                            <div class="flex items-center justify-between p-2.5 border border-indigo-200/80 rounded-xl bg-indigo-50/50">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-7 h-7 rounded-lg bg-[#031C5B] text-white flex items-center justify-center font-black text-[10px] shadow-xs">
-                                        AP
+                            <div class="border border-indigo-200/80 rounded-xl bg-indigo-50/50 overflow-hidden">
+                                <div class="flex items-center justify-between p-2.5">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-7 h-7 rounded-lg bg-[#031C5B] text-white flex items-center justify-center font-black text-[10px] shadow-xs">
+                                            AP
+                                        </div>
+                                        <div>
+                                            <span class="text-xs font-bold text-[#031C5B]">Academia Pay</span>
+                                            <span class="inline-block ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-purple-100 text-purple-700">Natif</span>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span class="text-xs font-bold text-[#031C5B]">Academia Pay</span>
-                                        <span class="inline-block ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-purple-100 text-purple-700">Natif</span>
-                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="payment_academia_pay" value="1" class="sr-only peer" {{ ($config['payment_academia_pay'] ?? '1') == '1' ? 'checked' : '' }}>
+                                        <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#031C5B]"></div>
+                                    </label>
                                 </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="payment_academia_pay" value="1" class="sr-only peer" {{ ($config['payment_academia_pay'] ?? '1') == '1' ? 'checked' : '' }}>
-                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#031C5B]"></div>
-                                </label>
+                                <p class="text-[10px] text-indigo-500 font-medium px-2.5 pb-2.5">Géré nativement par la plateforme — aucune configuration externe requise.</p>
                             </div>
 
-                            <!-- Orange Money -->
-                            <div class="flex items-center justify-between p-2.5 border border-slate-200/70 rounded-xl bg-slate-50/40">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center font-black text-[10px]">
-                                        OM
+                            @foreach([
+                                ['key' => 'orange_money', 'label' => 'Orange Money', 'badge' => 'OM', 'color' => 'bg-orange-500'],
+                                ['key' => 'wave', 'label' => 'Wave Mobile Money', 'badge' => 'WV', 'color' => 'bg-sky-400'],
+                                ['key' => 'mtn', 'label' => 'MTN Mobile Money', 'badge' => 'MTN', 'color' => 'bg-amber-400 text-slate-900'],
+                                ['key' => 'card', 'label' => 'Cartes Bancaires (Visa/MC)', 'badge' => 'CB', 'color' => 'bg-blue-900'],
+                            ] as $provider)
+                                @php $isOn = ($config['payment_' . $provider['key']] ?? '0') == '1'; @endphp
+                                <div class="border border-slate-200/70 rounded-xl bg-slate-50/40 overflow-hidden">
+                                    <div class="flex items-center justify-between p-2.5">
+                                        <div class="flex items-center gap-2.5">
+                                            <div class="w-7 h-7 rounded-lg {{ $provider['color'] }} text-white flex items-center justify-center font-black text-[10px]">
+                                                {{ $provider['badge'] }}
+                                            </div>
+                                            <span class="text-xs font-semibold text-slate-800">{{ $provider['label'] }}</span>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" name="payment_{{ $provider['key'] }}" value="1" class="sr-only peer" onchange="togglePaymentProviderConfig('{{ $provider['key'] }}', this.checked)" {{ $isOn ? 'checked' : '' }}>
+                                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#031C5B]"></div>
+                                        </label>
                                     </div>
-                                    <span class="text-xs font-semibold text-slate-800">Orange Money</span>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="payment_orange_money" value="1" class="sr-only peer" {{ ($config['payment_orange_money'] ?? '1') == '1' ? 'checked' : '' }}>
-                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#031C5B]"></div>
-                                </label>
-                            </div>
-
-                            <!-- Wave Mobile Money -->
-                            <div class="flex items-center justify-between p-2.5 border border-slate-200/70 rounded-xl bg-slate-50/40">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-7 h-7 rounded-lg bg-sky-400 text-white flex items-center justify-center font-black text-[10px]">
-                                        WV
+                                    <div id="payment-config-{{ $provider['key'] }}" class="payment-config-panel px-2.5 pb-2.5 space-y-2 {{ $isOn ? '' : 'hidden' }}">
+                                        <div class="border-t border-slate-200/70 pt-2.5">
+                                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Numéro Marchand {{ $provider['label'] }}</label>
+                                            <input type="text" name="{{ $provider['key'] }}_merchant_id" value="{{ $config[$provider['key'] . '_merchant_id'] ?? '' }}" placeholder="Identifiant marchand" class="w-full bg-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg px-3 py-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Clé Secrète {{ $provider['label'] }}</label>
+                                            <input type="password" name="{{ $provider['key'] }}_secret_key" value="" autocomplete="new-password" placeholder="{{ !empty($config[$provider['key'] . '_secret_key_set']) ? '••••••••••••  (configurée — laisser vide pour ne pas changer)' : 'Clé secrète API' }}" class="w-full bg-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg px-3 py-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+                                        </div>
                                     </div>
-                                    <span class="text-xs font-semibold text-slate-800">Wave Mobile Money</span>
                                 </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="payment_wave" value="1" class="sr-only peer" {{ ($config['payment_wave'] ?? '1') == '1' ? 'checked' : '' }}>
-                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#031C5B]"></div>
-                                </label>
-                            </div>
-
-                            <!-- MTN Mobile Money -->
-                            <div class="flex items-center justify-between p-2.5 border border-slate-200/70 rounded-xl bg-slate-50/40">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-7 h-7 rounded-lg bg-amber-400 text-slate-900 flex items-center justify-center font-black text-[10px]">
-                                        MTN
-                                    </div>
-                                    <span class="text-xs font-semibold text-slate-800">MTN Mobile Money</span>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="payment_mtn" value="1" class="sr-only peer" {{ ($config['payment_mtn'] ?? '1') == '1' ? 'checked' : '' }}>
-                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#031C5B]"></div>
-                                </label>
-                            </div>
-
-                            <!-- Cartes Bancaires -->
-                            <div class="flex items-center justify-between p-2.5 border border-slate-200/70 rounded-xl bg-slate-50/40">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-7 h-7 rounded-lg bg-blue-900 text-white flex items-center justify-center font-black text-[10px]">
-                                        CB
-                                    </div>
-                                    <span class="text-xs font-semibold text-slate-800">Cartes Bancaires (Visa/MC)</span>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="payment_card" value="1" class="sr-only peer" {{ ($config['payment_card'] ?? '0') == '1' ? 'checked' : '' }}>
-                                    <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#031C5B]"></div>
-                                </label>
-                            </div>
+                            @endforeach
                         </div>
                     </div>
 
@@ -351,6 +335,78 @@
                 </div>
             </div>
 
+            <!-- SECTION 5: Typologies & Caractéristiques Scolaires -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 lg:col-span-2">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+                        <i class="ph ph-buildings text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-sm">Classification & Caractéristiques Scolaires</h3>
+                        <p class="text-[11px] text-slate-500">Définissez les options sélectionnables pour les types d'établissements, les niveaux d'enseignement et les régimes linguistiques.</p>
+                    </div>
+                </div>
+
+                <div class="border-b border-slate-100 mb-5"></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                            Secteurs / Statuts juridiques
+                            <span class="text-[10px] text-slate-400 font-normal block">(séparés par des virgules)</span>
+                        </label>
+                        <input type="text" name="school_sectors" 
+                               value="{{ is_array($config['school_sectors'] ?? '') ? implode(', ', $config['school_sectors']) : (str_starts_with($config['school_sectors'] ?? '', '[') ? implode(', ', json_decode($config['school_sectors'], true) ?? []) : ($config['school_sectors'] ?? 'Privé, Public, Semi-privé')) }}"
+                               placeholder="Ex: Privé, Public, Semi-privé"
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-teal-600 focus:bg-white transition">
+                        <p class="text-[10px] text-slate-400 mt-1">Exemple : Public, Privé, Semi-privé, Confessionnel</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                            Niveaux d'Enseignement
+                            <span class="text-[10px] text-slate-400 font-normal block">(séparés par des virgules)</span>
+                        </label>
+                        <input type="text" name="school_education_levels" 
+                               value="{{ is_array($config['school_education_levels'] ?? '') ? implode(', ', $config['school_education_levels']) : (str_starts_with($config['school_education_levels'] ?? '', '[') ? implode(', ', json_decode($config['school_education_levels'], true) ?? []) : ($config['school_education_levels'] ?? 'Préscolaire, Primaire, Collège, Lycée')) }}"
+                               placeholder="Ex: Préscolaire, Primaire, Collège, Lycée"
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-teal-600 focus:bg-white transition">
+                        <p class="text-[10px] text-slate-400 mt-1">Exemple : Préscolaire, Primaire, Collège, Lycée, Supérieur</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                            Régimes Linguistiques
+                            <span class="text-[10px] text-slate-400 font-normal block">(séparés par des virgules)</span>
+                        </label>
+                        <input type="text" name="school_language_regimes" 
+                               value="{{ is_array($config['school_language_regimes'] ?? '') ? implode(', ', $config['school_language_regimes']) : (str_starts_with($config['school_language_regimes'] ?? '', '[') ? implode(', ', json_decode($config['school_language_regimes'], true) ?? []) : ($config['school_language_regimes'] ?? 'Monolingue (Français), Bilingue (Français / Anglais), International / Trilingue')) }}"
+                               placeholder="Ex: Monolingue, Bilingue, International"
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-teal-600 focus:bg-white transition">
+                        <p class="text-[10px] text-slate-400 mt-1">Options pour signifier si l'établissement est bilingue ou non</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">
+                            Années Scolaires
+                            <span class="text-[10px] text-slate-400 font-normal block">(séparées par des virgules)</span>
+                        </label>
+                        <input type="text" name="school_academic_years"
+                               value="{{ is_array($config['school_academic_years'] ?? '') ? implode(', ', $config['school_academic_years']) : (str_starts_with($config['school_academic_years'] ?? '', '[') ? implode(', ', json_decode($config['school_academic_years'], true) ?? []) : ($config['school_academic_years'] ?? implode(', ', \App\Modules\SuperAdmin\Domain\Models\School::defaultAcademicYears()))) }}"
+                               placeholder="Ex: 2025-2026, 2026-2027, 2027-2028"
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-teal-600 focus:bg-white transition">
+                        <p class="text-[10px] text-slate-400 mt-1">Proposées dans les formulaires de semestres, inscriptions et promotions</p>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </form>
+
+    <script>
+        function togglePaymentProviderConfig(key, isOn) {
+            const panel = document.getElementById('payment-config-' + key);
+            if (panel) panel.classList.toggle('hidden', !isOn);
+        }
+    </script>
 @endsection

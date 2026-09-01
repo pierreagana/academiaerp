@@ -58,10 +58,15 @@ class AppServiceProvider extends ServiceProvider
                     app()->setLocale($allSettings->get('default_language'));
                 }
 
-                // 4. Global Timezone
-                if ($allSettings->has('timezone')) {
-                    config(['app.timezone' => $allSettings->get('timezone')]);
-                    date_default_timezone_set($allSettings->get('timezone'));
+                // 4. Global Timezone — the settings form stores a free-text display
+                // label (e.g. "GMT+1 (Douala, Kinshasa)"), not a validated IANA
+                // identifier, so only apply it if it's actually one Carbon/PHP
+                // accept — otherwise every artisan command crashes at shutdown
+                // trying to build a CarbonTimeZone from the raw label.
+                $timezoneSetting = $allSettings->get('timezone');
+                if ($timezoneSetting && in_array($timezoneSetting, \DateTimeZone::listIdentifiers(), true)) {
+                    config(['app.timezone' => $timezoneSetting]);
+                    date_default_timezone_set($timezoneSetting);
                 }
 
                 // 5. OpenAI / Gemini AI API Key
@@ -69,9 +74,9 @@ class AppServiceProvider extends ServiceProvider
                     config(['openai.api_key' => $allSettings->get('openai_api_key')]);
                 }
 
-                // 6. Stripe Secret Key
-                if ($allSettings->has('stripe_secret_key')) {
-                    config(['services.stripe.secret' => $allSettings->get('stripe_secret_key')]);
+                // 5b. Anthropic Claude API Key
+                if ($allSettings->has('anthropic_api_key')) {
+                    config(['anthropic.api_key' => $allSettings->get('anthropic_api_key')]);
                 }
 
                 // 7. Primary Theme Color

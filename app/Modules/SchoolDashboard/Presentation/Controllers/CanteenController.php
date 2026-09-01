@@ -8,6 +8,8 @@ use App\Modules\Canteen\Application\DTOs\AdjustStockDTO;
 use App\Modules\Canteen\Application\DTOs\CreateMealRecordDTO;
 use App\Modules\Canteen\Application\DTOs\CreateMenuItemDTO;
 use App\Modules\Canteen\Application\DTOs\CreateProductDTO;
+use App\Modules\Academic\Domain\Models\Student;
+use App\Modules\Canteen\Application\Services\CanteenEnrollmentService;
 use App\Modules\Canteen\Application\Services\CanteenStatsService;
 use App\Modules\Canteen\Application\UseCases\AdjustStockUseCase;
 use App\Modules\Canteen\Application\UseCases\CreateProductUseCase;
@@ -18,7 +20,9 @@ use App\Modules\Canteen\Application\UseCases\RecordMealUseCase;
 use App\Modules\Canteen\Application\UseCases\SaveMenuItemUseCase;
 use App\Modules\Canteen\Application\UseCases\SyncRosterUseCase;
 use App\Modules\Canteen\Domain\Models\Account;
+use App\Modules\Canteen\Domain\Models\CanteenEnrollmentRequest;
 use App\Modules\Canteen\Domain\Models\CanteenReservation;
+use App\Modules\Canteen\Domain\Models\MealRecord;
 use App\Modules\Canteen\Domain\Models\MenuItem;
 use App\Modules\Canteen\Domain\Repositories\AccountRepositoryInterface;
 use App\Modules\Canteen\Domain\Repositories\MealRecordRepositoryInterface;
@@ -28,16 +32,144 @@ use App\Modules\Canteen\Domain\Repositories\AllergenRepositoryInterface;
 use App\Modules\Canteen\Domain\Repositories\ProductRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
 class CanteenController extends Controller
 {
-    public function dashboard(CanteenStatsService $statsService)
+    public function dashboard(CanteenStatsService $statsService, CanteenEnrollmentService $enrollmentService)
     {
+        $schoolId = auth()->user()->school_id;
+
         $stats = $statsService->dashboardStats();
+        $stats['enrolled_count'] = $enrollmentService->activeCount($schoolId);
         $criticalProducts = $statsService->criticalProducts();
 
-        return view('SchoolDashboard::canteen.dashboard', compact('stats', 'criticalProducts'));
+        // Real weekday attendance (last 4 weeks of actual recorded meals) —
+        // replaces a hardcoded ['LUN' => 70, 'MAR' => 55, ...] bar chart.
+        $byWeekday = MealRecord::where('school_id', $schoolId)
+            ->where('date', '>=', now()->subWeeks(4))
+            ->get()
+            ->groupBy(fn ($r) => $r->date->dayOfWeekIso); // 1=Mon..5=Fri
+
+        $weekdayLabels = [1 => 'LUN', 2 => 'MAR', 3 => 'MER', 4 => 'JEU', 5 => 'VEN'];
+        $weekdayCounts = [];
+        foreach ($weekdayLabels as $iso => $label) {
+            $weekdayCounts[$label] = $byWeekday->get($iso, collect())->count();
+        }
+        $maxWeekdayCount = max($weekdayCounts) ?: 1;
+        $weekdayHeights = array_map(fn ($c) => $maxWeekdayCount > 0 ? round(($c / $maxWeekdayCount) * 100) : 0, $weekdayCounts);
+
+        return view('SchoolDashboard::canteen.dashboard', compact(
+            'stats', 'criticalProducts', 'weekdayCounts', 'weekdayHeights'
+        ));
+    }
+
+    /**
+     * Real attendance-pattern narration for the canteen dashboard — no more
+     * fake "Score Végétal"/"Alerte Sodium" claims, which would need real
+     * ingredient-level nutrition data that doesn't exist in this app.
+     */
+    public function aiCanteenInsight(CanteenStatsService $statsService, \App\Modules\SuperAdmin\Application\Services\AIService $aiService)
+    {
+        $schoolId = auth()->user()->school_id;
+
+        $byWeekday = MealRecord::where('school_id', $schoolId)
+            ->where('date', '>=', now()->subWeeks(4))
+            ->get()
+            ->groupBy(fn ($r) => $r->date->dayOfWeekIso);
+
+        $weekdayLabels = [1 => 'Lundi', 2 => 'Mardi', 3 => 'Mercredi', 4 => 'Jeudi', 5 => 'Vendredi'];
+        $weekdayCounts = [];
+        foreach ($weekdayLabels as $iso => $label) {
+            $weekdayCounts[$label] = $byWeekday->get($iso, collect())->count();
+        }
+
+        $stats = $statsService->dashboardStats();
+        $stats['enrolled_count'] = 0;
+
+        $payload = [
+            'repas_enregistres_par_jour_4_dernieres_semaines' => $weekdayCounts,
+            'repas_aujourdhui' => $stats['meals_today'],
+            'prix_moyen_aujourdhui_fcfa' => $stats['average_price_today'],
+            'taux_gaspillage_mensuel_pct' => $stats['waste_ratio'],
+            'produits_en_stock_critique' => $statsService->criticalProducts()->count(),
+        ];
+
+        if (array_sum($weekdayCounts) === 0) {
+            return response()->json([
+                'success' => false,
+                'error' => "Pas encore assez de repas enregistrés pour dégager une tendance.",
+                'stats' => $payload,
+            ]);
+        }
+
+        $systemPrompt = "Tu es un assistant cantine scolaire pour AcademiaERP. Tu commentes des statistiques réelles de fréquentation et de gaspillage — jamais de prétendue analyse nutritionnelle, l'application ne dispose d'aucune donnée d'ingrédients.";
+        $userPrompt = "Voici les statistiques réelles de la cantine :\n"
+            . json_encode($payload, JSON_UNESCAPED_UNICODE)
+            . "\n\nRédige un commentaire court (2-3 phrases) sur la fréquentation et le gaspillage, en français.";
+
+        $result = $aiService->generateText($systemPrompt, $userPrompt, 200);
+
+        return response()->json([
+            'success' => $result['success'],
+            'insight' => $result['text'],
+            'error' => $result['error'],
+            'stats' => $payload,
+        ]);
+    }
+
+    /**
+     * Real planning advisory from actual critical/expiring stock and how
+     * many menu slots are still empty this week — no more generic
+     * "produits locaux de saison" text with nothing behind it.
+     */
+    public function aiPlanningAdvice(
+        Request $request,
+        MenuRepositoryInterface $menuRepository,
+        ProductRepositoryInterface $productRepository,
+        \App\Modules\SuperAdmin\Application\Services\AIService $aiService
+    ) {
+        $week = $request->get('week', MenuItem::currentWeekStart()->format('Y-m-d'));
+
+        $items = $menuRepository->itemsForWeek($week);
+        $plannedCount = $items->count();
+
+        $criticalProducts = $productRepository->criticalOrLow();
+        $expiringSoon = $criticalProducts->filter(fn ($p) => $p->expiry_date && $p->expiry_date->lte(now()->addDays(14)));
+
+        $payload = [
+            'repas_deja_planifies_cette_semaine' => $plannedCount,
+            'produits_stock_critique_ou_bas' => $criticalProducts->count(),
+            'produits_bientot_perimes_14j' => $expiringSoon->map(fn ($p) => [
+                'nom' => $p->name,
+                'quantite' => $p->quantity,
+                'unite' => $p->unit,
+                'peremption' => $p->expiry_date?->format('d/m/Y'),
+            ])->values()->toArray(),
+        ];
+
+        if ($criticalProducts->isEmpty() && $plannedCount === 0) {
+            return response()->json([
+                'success' => false,
+                'error' => "Pas encore de menu planifié ni de produit en stock critique cette semaine.",
+                'stats' => $payload,
+            ]);
+        }
+
+        $systemPrompt = "Tu es un assistant cantine scolaire pour AcademiaERP. Tu donnes des conseils de planification de menu basés sur l'état réel du stock — jamais de recommandations diététiques ou de saisonnalité inventées, l'application n'a aucune donnée nutritionnelle ni de fournisseurs locaux.";
+        $userPrompt = "Voici l'état réel du stock et de la planification :\n"
+            . json_encode($payload, JSON_UNESCAPED_UNICODE)
+            . "\n\nRédige un conseil court (2-3 phrases) en français : si des produits périment bientôt, recommande de les utiliser en priorité dans les prochains menus ; sinon dis simplement que le stock est sous contrôle.";
+
+        $result = $aiService->generateText($systemPrompt, $userPrompt, 200);
+
+        return response()->json([
+            'success' => $result['success'],
+            'advice' => $result['text'],
+            'error' => $result['error'],
+            'stats' => $payload,
+        ]);
     }
 
     public function planning(
@@ -150,7 +282,14 @@ class CanteenController extends Controller
         $products = $productRepository->paginate(10);
         $recentMovements = $productRepository->recentMovements(5);
 
-        return view('SchoolDashboard::canteen.inventory', compact('products', 'recentMovements'));
+        $allProducts = $productRepository->criticalOrLow();
+        $criticalCount = $allProducts->where('status', 'critical')->count();
+        $lowStockCount = $allProducts->where('status', 'low_stock')->count();
+        $expiringSoonCount = $allProducts->where('status', 'expiring_soon')->count();
+
+        return view('SchoolDashboard::canteen.inventory', compact(
+            'products', 'recentMovements', 'criticalCount', 'lowStockCount', 'expiringSoonCount'
+        ));
     }
 
     public function exportInventory(ProductRepositoryInterface $productRepository)
@@ -280,7 +419,54 @@ class CanteenController extends Controller
         ));
     }
 
-    public function recordMeal(Request $request, RecordMealUseCase $useCase, AccountRepositoryInterface $accountRepository)
+    /**
+     * Real order-volume narration from actual daily meal counts and account
+     * balances — replaces a generic "anticipez les besoins" line with
+     * nothing behind it.
+     */
+    public function aiReservationForecast(MealRecordRepositoryInterface $mealRepository, \App\Modules\SuperAdmin\Application\Services\AIService $aiService)
+    {
+        $schoolId = auth()->user()->school_id;
+        $week = MenuItem::currentWeekStart()->format('Y-m-d');
+
+        $dailyCounts = $mealRepository->dailyCountsForWeek($week);
+        $mealsToday = $mealRepository->countToday();
+        $negativeAccounts = Account::where('school_id', $schoolId)->where('balance', '<', 0)->count();
+        $negativeBalanceTotal = (float) Account::where('school_id', $schoolId)->where('balance', '<', 0)->sum('balance');
+
+        $payload = [
+            'repas_par_jour_cette_semaine' => $dailyCounts,
+            'repas_aujourdhui' => $mealsToday,
+            'comptes_en_solde_negatif' => $negativeAccounts,
+            'montant_total_solde_negatif_fcfa' => abs($negativeBalanceTotal),
+        ];
+
+        $totalMealsThisWeek = collect($dailyCounts)->sum(fn ($day) => is_array($day) ? ($day['count'] ?? 0) : $day);
+
+        if ($totalMealsThisWeek === 0 && $negativeAccounts === 0) {
+            return response()->json([
+                'success' => false,
+                'error' => "Pas encore assez de repas enregistrés cette semaine pour une analyse.",
+                'stats' => $payload,
+            ]);
+        }
+
+        $systemPrompt = "Tu es un assistant cantine scolaire pour AcademiaERP. Tu commentes des statistiques réelles de repas et de soldes de comptes — jamais de prédiction fabriquée.";
+        $userPrompt = "Voici les données réelles de la semaine :\n"
+            . json_encode($payload, JSON_UNESCAPED_UNICODE)
+            . "\n\nRédige un commentaire court (2-3 phrases) en français sur le volume de repas à prévoir et, s'il y en a, sur les comptes en solde négatif à relancer.";
+
+        $result = $aiService->generateText($systemPrompt, $userPrompt, 200);
+
+        return response()->json([
+            'success' => $result['success'],
+            'forecast' => $result['text'],
+            'error' => $result['error'],
+            'stats' => $payload,
+        ]);
+    }
+
+    public function recordMeal(Request $request, RecordMealUseCase $useCase, AccountRepositoryInterface $accountRepository, CanteenEnrollmentService $enrollmentService)
     {
         $data = $request->validate([
             'account_id' => ['required', 'exists:canteen_accounts,id'],
@@ -288,7 +474,13 @@ class CanteenController extends Controller
             'date' => ['nullable', 'date'],
         ]);
 
-        $accountRepository->find($data['account_id']);
+        $account = $accountRepository->find($data['account_id']);
+
+        // Gate on the account's own enrollment record — even the manual
+        // roster-table form can't bypass the rule the new Scanner enforces.
+        if ($account->holder_type === 'student' && !$enrollmentService->isEnrolled($account->holder_id)) {
+            return back()->withErrors(['account_id' => "Cet élève n'a pas d'inscription cantine valide."]);
+        }
 
         $useCase->execute(new CreateMealRecordDTO([
             'account_id' => $data['account_id'],
@@ -297,6 +489,128 @@ class CanteenController extends Controller
         ]));
 
         return back()->with('success', 'Repas enregistré avec succès.');
+    }
+
+    public function enrollmentRequests(Request $request)
+    {
+        $schoolId = auth()->user()->school_id;
+        $status = $request->get('status', 'pending');
+
+        $requests = CanteenEnrollmentRequest::with(['student', 'requestedByParent', 'reviewedBy'])
+            ->whereHas('student', fn ($q) => $q->where('school_id', $schoolId))
+            ->when($status !== 'all', fn ($q) => $q->where('status', $status))
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        $enrolledIds = CanteenEnrollmentRequest::where('status', CanteenEnrollmentRequest::STATUS_APPROVED)
+            ->whereIn('id', function ($query) {
+                $query->selectRaw('MAX(id)')->from('canteen_enrollment_requests')->groupBy('student_id');
+            })
+            ->pluck('student_id');
+        $unenrolledStudents = Student::where('school_id', $schoolId)
+            ->whereNotIn('id', $enrolledIds)
+            ->orderBy('first_name')
+            ->get();
+
+        return view('SchoolDashboard::canteen.requests', compact('requests', 'status', 'unenrolledStudents'));
+    }
+
+    public function directEnroll(Request $request, CanteenEnrollmentService $enrollmentService)
+    {
+        $schoolId = auth()->user()->school_id;
+
+        $data = $request->validate([
+            'student_ids' => ['required', 'array'],
+            'student_ids.*' => ['integer', Rule::exists('students', 'id')->where('school_id', $schoolId)],
+        ]);
+
+        foreach ($data['student_ids'] as $studentId) {
+            if (!$enrollmentService->isEnrolled($studentId)) {
+                $enrollmentService->directlyEnroll(Student::findOrFail($studentId), $request->user());
+            }
+        }
+
+        return back()->with('success', 'Élève(s) inscrit(s) à la cantine avec succès.');
+    }
+
+    public function approveEnrollment($id, CanteenEnrollmentService $enrollmentService)
+    {
+        $schoolId = auth()->user()->school_id;
+        $enrollmentRequest = CanteenEnrollmentRequest::whereHas('student', fn ($q) => $q->where('school_id', $schoolId))->findOrFail($id);
+        $enrollmentService->approve($enrollmentRequest, auth()->user());
+
+        return back()->with('success', 'Inscription validée.');
+    }
+
+    public function rejectEnrollment(Request $request, $id, CanteenEnrollmentService $enrollmentService)
+    {
+        $schoolId = auth()->user()->school_id;
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
+        $enrollmentRequest = CanteenEnrollmentRequest::whereHas('student', fn ($q) => $q->where('school_id', $schoolId))->findOrFail($id);
+        $enrollmentService->reject($enrollmentRequest, auth()->user(), $data['reason'] ?? null);
+
+        return back()->with('success', 'Demande refusée.');
+    }
+
+    public function withdrawEnrollment($id, CanteenEnrollmentService $enrollmentService)
+    {
+        $schoolId = auth()->user()->school_id;
+        $enrollmentRequest = CanteenEnrollmentRequest::whereHas('student', fn ($q) => $q->where('school_id', $schoolId))->findOrFail($id);
+        $enrollmentService->withdraw($enrollmentRequest, auth()->user());
+
+        return back()->with('success', 'Élève retiré de la cantine.');
+    }
+
+    public function scanner()
+    {
+        $recentMeals = \App\Modules\Canteen\Domain\Models\MealRecord::with('account.holder')
+            ->where('school_id', auth()->user()->school_id)
+            ->whereDate('date', Carbon::today())
+            ->latest()
+            ->limit(15)
+            ->get();
+
+        return view('SchoolDashboard::canteen.scanner', compact('recentMeals'));
+    }
+
+    public function scan(Request $request, RecordMealUseCase $useCase, CanteenEnrollmentService $enrollmentService)
+    {
+        $data = $request->validate([
+            'matricule' => ['required', 'string'],
+            'price' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $schoolId = auth()->user()->school_id;
+        $student = Student::where('school_id', $schoolId)
+            ->where('roll_number', trim($data['matricule']))
+            ->where('status', 'active')
+            ->first();
+
+        if (!$student) {
+            return back()->withErrors(['matricule' => "Élève introuvable pour ce matricule."])->withInput();
+        }
+
+        if (!$enrollmentService->isEnrolled($student->id)) {
+            return back()->withErrors(['matricule' => "{$student->first_name} {$student->last_name} n'a pas d'inscription cantine valide."])->withInput();
+        }
+
+        $account = Account::where('school_id', $schoolId)
+            ->where('holder_type', 'student')
+            ->where('holder_id', $student->id)
+            ->first();
+
+        if (!$account) {
+            return back()->withErrors(['matricule' => "Aucun compte cantine trouvé pour cet élève."])->withInput();
+        }
+
+        $useCase->execute(new CreateMealRecordDTO([
+            'account_id' => $account->id,
+            'price' => $data['price'],
+            'date' => Carbon::today()->toDateString(),
+        ]));
+
+        return back()->with('success', "Repas enregistré pour {$student->first_name} {$student->last_name}.");
     }
 
     public function exportRoster(AccountRepositoryInterface $accountRepository)

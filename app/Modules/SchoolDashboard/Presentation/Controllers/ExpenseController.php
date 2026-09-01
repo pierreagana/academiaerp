@@ -16,10 +16,76 @@ use App\Modules\Finance\Application\UseCases\UpdateExpenseUseCase;
 use App\Modules\Finance\Domain\Models\Expense;
 use App\Modules\Finance\Domain\Repositories\ExpenseBudgetRepositoryInterface;
 use App\Modules\Finance\Domain\Repositories\ExpenseRepositoryInterface;
+use App\Modules\SuperAdmin\Application\Services\AIService;
 use Illuminate\Http\Request;
 
 class ExpenseController extends Controller
 {
+    /**
+     * Real quarter-over-quarter category comparison, narrated by AI — the
+     * old text ("surveillez les catégories...") wasn't reading any data at
+     * all, just a static suggestion shown regardless of actual spending.
+     */
+    public function aiExpenseAnalysis(AIService $aiService)
+    {
+        $schoolId = auth()->user()->school_id;
+
+        $thisQuarterStart = now()->startOfQuarter();
+        $lastQuarterStart = (clone $thisQuarterStart)->subQuarter();
+
+        $thisQuarter = Expense::where('school_id', $schoolId)
+            ->where('status', '!=', 'rejected')
+            ->where('expense_date', '>=', $thisQuarterStart)
+            ->get()
+            ->groupBy('category')
+            ->map(fn ($g) => (float) $g->sum('amount'));
+
+        $lastQuarter = Expense::where('school_id', $schoolId)
+            ->where('status', '!=', 'rejected')
+            ->whereBetween('expense_date', [$lastQuarterStart, $thisQuarterStart])
+            ->get()
+            ->groupBy('category')
+            ->map(fn ($g) => (float) $g->sum('amount'));
+
+        $comparison = $thisQuarter->keys()->merge($lastQuarter->keys())->unique()
+            ->map(function ($category) use ($thisQuarter, $lastQuarter) {
+                $current = $thisQuarter->get($category, 0.0);
+                $previous = $lastQuarter->get($category, 0.0);
+                $changePct = $previous > 0 ? round((($current - $previous) / $previous) * 100, 1) : null;
+
+                return [
+                    'categorie' => $category,
+                    'montant_ce_trimestre' => $current,
+                    'montant_trimestre_precedent' => $previous,
+                    'variation_pct' => $changePct,
+                ];
+            })
+            ->sortByDesc('montant_ce_trimestre')
+            ->values();
+
+        if ($comparison->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'error' => "Pas encore de dépenses enregistrées ce trimestre.",
+                'stats' => [],
+            ]);
+        }
+
+        $systemPrompt = "Tu es un analyste financier pour AcademiaERP, un SaaS de gestion scolaire. Tu commentes de vraies statistiques de dépenses par catégorie, trimestre en cours vs précédent — jamais de chiffre inventé.";
+        $userPrompt = "Voici les dépenses réelles par catégorie (FCFA) :\n"
+            . json_encode($comparison, JSON_UNESCAPED_UNICODE)
+            . "\n\nRédige un commentaire court (2-3 phrases) en français : signale la ou les catégories dont les dépenses augmentent fortement, sinon dis que les dépenses sont stables.";
+
+        $result = $aiService->generateText($systemPrompt, $userPrompt, 220);
+
+        return response()->json([
+            'success' => $result['success'],
+            'analysis' => $result['text'],
+            'error' => $result['error'],
+            'stats' => $comparison,
+        ]);
+    }
+
     public function overview(ExpenseStatsService $statsService)
     {
         $schoolId = auth()->user()->school_id;

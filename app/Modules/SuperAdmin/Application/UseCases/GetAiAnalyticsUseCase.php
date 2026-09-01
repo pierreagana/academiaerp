@@ -6,33 +6,27 @@ use App\Modules\SuperAdmin\Domain\Models\AIModel;
 use App\Modules\SuperAdmin\Domain\Models\Invoice;
 use App\Modules\SuperAdmin\Domain\Models\School;
 use App\Modules\SuperAdmin\Domain\Models\SystemLog;
+use App\Modules\Canteen\Domain\Models\MealRecord;
+use App\Modules\Library\Domain\Models\Loan;
+use App\Modules\Infirmary\Domain\Models\Intervention;
+use App\Modules\Transport\Domain\Models\TripLog;
 
 class GetAiAnalyticsUseCase
 {
     public function execute(): array
     {
-        // 1. Fetch DB records
+        // 1. Real KPIs — a genuine 0 is shown as 0, no fabricated fallback.
         $totalSchools = School::count();
-        if ($totalSchools == 0) $totalSchools = 12;
-
         $activeSchools = School::where('status', 'active')->orWhere('status', 'actif')->count();
-        if ($activeSchools == 0) $activeSchools = 10;
 
-        $premiumSchools = School::all()->filter(function($s) {
-            $pName = $s->package_name ?? $s->package ?? '';
+        $premiumSchools = School::all()->filter(function ($s) {
+            $pName = $s->plan_name ?? '';
             return str_contains($pName, 'Pro') || str_contains($pName, 'Enterprise') || str_contains($pName, 'Premium');
         })->count();
-        if ($premiumSchools == 0) $premiumSchools = 4;
 
         $totalStudents = (int) School::sum('students_count');
-        if ($totalStudents == 0) $totalStudents = 4250;
-
         $totalPaidRevenue = (float) Invoice::where('status', 'paid')->sum('amount');
-        if ($totalPaidRevenue == 0) $totalPaidRevenue = 3890500;
-
         $pendingRevenue = (float) Invoice::where('status', 'pending')->sum('amount');
-        if ($pendingRevenue == 0) $pendingRevenue = 1245000;
-
         $errorLogsCount = SystemLog::where('level', 'error')->count();
 
         $aiModels = AIModel::where('status', 'active')->get();
@@ -47,56 +41,76 @@ class GetAiAnalyticsUseCase
             'error_logs'       => $errorLogsCount,
         ];
 
+        // 2. Real module adoption — % of schools with at least one genuine
+        // record in each module, over the last 60 days. Replaces fake
+        // "Tuteur IA" / "Tuteur Virtuel" stats — no such feature exists
+        // anywhere in the app.
+        $schoolIds = School::pluck('id');
+        $totalSchoolsForAdoption = max($schoolIds->count(), 1);
+        $since = now()->subDays(60);
+
+        $adoptionFor = fn ($model) => $model::where('created_at', '>=', $since)
+            ->whereIn('school_id', $schoolIds)
+            ->distinct('school_id')
+            ->count('school_id');
+
         $engagementData = [
             [
-                'label' => 'Taux d\'Utilisation Tuteur IA',
-                'value' => '88%',
-                'trend' => '+7% ce mois',
+                'label' => 'Écoles Actives sur la Cantine',
+                'value' => round((MealRecord::where('date', '>=', $since)->whereIn('school_id', $schoolIds)->distinct('school_id')->count('school_id') / $totalSchoolsForAdoption) * 100) . '%',
                 'color' => 'emerald',
             ],
             [
-                'label' => 'Adoption Portail Parents & Push',
-                'value' => '76%',
-                'trend' => '+14% ce mois',
+                'label' => 'Écoles Actives sur la Bibliothèque',
+                'value' => round(($adoptionFor(Loan::class) / $totalSchoolsForAdoption) * 100) . '%',
                 'color' => 'blue',
             ],
             [
-                'label' => 'Génération des Bulletins PDF',
-                'value' => '98%',
-                'trend' => '+4% ce trimestre',
+                'label' => 'Écoles Actives sur l\'Infirmerie',
+                'value' => round(($adoptionFor(Intervention::class) / $totalSchoolsForAdoption) * 100) . '%',
                 'color' => 'indigo',
             ],
             [
-                'label' => 'Satisfaction Tuteur Virtuel',
-                'value' => '94%',
-                'trend' => '+6% global',
+                'label' => 'Écoles Actives sur le Transport',
+                'value' => round((TripLog::where('trip_date', '>=', $since)->whereIn('school_id', $schoolIds)->distinct('school_id')->count('school_id') / $totalSchoolsForAdoption) * 100) . '%',
                 'color' => 'purple',
             ],
         ];
 
-        $predictions = [
-            [
-                'school'     => 'Complexe Scolaire Horizon Dakar',
-                'severity'   => 'high',
-                'risk'       => 'Risque de Churn Détecté par l\'IA',
-                'reason'     => 'Connexions administrateurs en baisse de 35% sur 14 jours',
-                'confidence' => 89,
-            ],
-            [
-                'school'     => 'Lycée Technique de Yaoundé',
-                'severity'   => 'medium',
-                'risk'       => 'Limite de Stockage Cloud Bientôt Atteinte',
-                'reason'     => '88% des 200 Go de pièces justificatives utilisées',
-                'confidence' => 95,
-            ],
-            [
-                'school'     => 'Collège St-Joseph Abidjan',
-                'severity'   => 'low',
-                'risk'       => 'Candidat à l\'Upgrade Enterprise',
-                'reason'     => 'Utilisation intensive du module Cantine & Mobile Money',
-                'confidence' => 92,
-            ],
-        ];
+        // 3. Real risk flags — no more invented schools/scenarios. Genuine
+        // signals: suspended status, unpaid/overdue invoices, near-zero
+        // enrollment on a paid plan.
+        $predictions = [];
+
+        foreach (School::where('status', 'suspendu')->get() as $school) {
+            $predictions[] = [
+                'school' => $school->name,
+                'severity' => 'high',
+                'risk' => 'Établissement Suspendu',
+                'reason' => 'Le statut de cet établissement est actuellement "suspendu".',
+            ];
+        }
+
+        $overdueBySchool = Invoice::whereIn('status', ['overdue', 'failed'])
+            ->get()
+            ->groupBy('school_name');
+        foreach ($overdueBySchool as $schoolName => $invoices) {
+            $predictions[] = [
+                'school' => $schoolName,
+                'severity' => 'medium',
+                'risk' => 'Factures en Retard',
+                'reason' => $invoices->count() . ' facture(s) impayée(s) pour un total de ' . number_format($invoices->sum('amount'), 0, ',', ' ') . ' FCFA.',
+            ];
+        }
+
+        foreach (School::where('plan_name', '!=', 'Starter')->where('students_count', '<', 10)->get() as $school) {
+            $predictions[] = [
+                'school' => $school->name,
+                'severity' => 'low',
+                'risk' => 'Sous-utilisation du Forfait',
+                'reason' => "Forfait {$school->plan_name} avec seulement {$school->students_count} élève(s) enregistré(s).",
+            ];
+        }
 
         return [
             'kpis'           => $kpis,

@@ -7,11 +7,14 @@ use App\Modules\Academic\Domain\Models\Room;
 use App\Modules\Academic\Domain\Models\Semester;
 use App\Modules\Academic\Domain\Models\Subject;
 use App\Modules\Academic\Domain\Models\Teacher;
+use App\Modules\Bulletin\Domain\Models\BulletinEvaluationType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use App\Support\Tenancy\BelongsToSchool;
 
 class HomeworkAssignment extends Model
 {
+    use BelongsToSchool;
     const TYPE_HOMEWORK = 'devoir_maison';
     const TYPE_TEST = 'interrogation';
 
@@ -20,7 +23,7 @@ class HomeworkAssignment extends Model
     const LIVE_COMPLETED = 'completed';
 
     protected $fillable = [
-        'school_id', 'branch_id', 'academic_class_id', 'subject_id', 'teacher_id', 'semester_id', 'room_id',
+        'school_id', 'branch_id', 'academic_class_id', 'subject_id', 'teacher_id', 'semester_id', 'evaluation_type_id', 'room_id',
         'title', 'type', 'description', 'scheduled_at', 'duration_minutes', 'max_score', 'started_at', 'ended_at',
     ];
 
@@ -53,6 +56,11 @@ class HomeworkAssignment extends Model
     public function room()
     {
         return $this->belongsTo(Room::class);
+    }
+
+    public function evaluationType()
+    {
+        return $this->belongsTo(BulletinEvaluationType::class);
     }
 
     public function submissions()

@@ -19,7 +19,10 @@ class TeacherDashboardService
     private const REPEATED_ABSENCE_LOOKBACK_DAYS = 30;
     private const REPEATED_ABSENCE_MIN_COUNT = 3;
 
-    public function __construct(private BulletinStatsService $bulletinStats) {}
+    public function __construct(
+        private BulletinStatsService $bulletinStats,
+        private TeacherSessionCheckinService $checkinService
+    ) {}
 
     public function currentSemester(int $schoolId)
     {
@@ -325,6 +328,7 @@ class TeacherDashboardService
         $slots = Timetable::where('teacher_id', $teacher->id)
             ->where('status', 'published')
             ->where('day_of_week', $todayName)
+            ->where('valid_from', '<=', now()->toDateString())
             ->with(['subject', 'academicClass', 'room'])
             ->orderBy('start_time')
             ->get();
@@ -334,9 +338,22 @@ class TeacherDashboardService
             ->get()
             ->keyBy('timetable_id');
 
-        return $slots->map(fn ($slot) => [
-            'slot' => $slot,
-            'checkin' => $checkins->get($slot->id),
-        ]);
+        // Dedup by start_time: several Timetable rows can exist for the same real slot
+        // (re-versioned via valid_from) — keep whichever version the teacher actually
+        // checked into today, if any, otherwise the newest version. Same versioning
+        // rule used for timetables everywhere else in this codebase; without it, a
+        // stale duplicate row renders as a second identical "Mes Cours Aujourd'hui" card.
+        $deduped = $slots->groupBy('start_time')->map(function ($group) use ($checkins) {
+            return $group->first(fn ($slot) => $checkins->has($slot->id)) ?? $group->sortByDesc('valid_from')->first();
+        })->values()->sortBy('start_time');
+
+        return $deduped->map(function ($slot) use ($checkins) {
+            $checkin = $checkins->get($slot->id);
+            return [
+                'slot' => $slot,
+                'checkin' => $checkin,
+                'missed' => $this->checkinService->isSlotMissed($slot, $checkin),
+            ];
+        })->values();
     }
 }

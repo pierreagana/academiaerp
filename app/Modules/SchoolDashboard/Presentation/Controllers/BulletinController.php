@@ -78,12 +78,20 @@ class BulletinController extends Controller
         ));
     }
 
-    public function grades(Request $request, BulletinGradeRepositoryInterface $gradeRepository, BulletinEvaluationTypeRepositoryInterface $evaluationTypeRepository, BulletinSubjectPublicationRepositoryInterface $subjectPublicationRepository, BulletinStatsService $stats)
+    public function grades(Request $request, BulletinGradeRepositoryInterface $gradeRepository, BulletinEvaluationTypeRepositoryInterface $evaluationTypeRepository, BulletinSubjectPublicationRepositoryInterface $subjectPublicationRepository, BulletinStatsService $stats, \App\Modules\SchoolDashboard\Application\Services\TeacherDashboardService $teacherDashboard)
     {
         $schoolId = auth()->user()->school_id;
         $branchId = auth()->user()->activeBranchId();
 
         $classes = AcademicClass::where('school_id', $schoolId)->whereBranch($branchId)->orderBy('name')->get();
+
+        // A teacher only ever enters grades for their own classes — admin/staff (no
+        // linked Teacher) keep seeing every class in the branch, unrestricted.
+        if ($teacherForClasses = auth()->user()->teacher) {
+            $ownClassIds = $teacherDashboard->myClasses($teacherForClasses)->pluck('id');
+            $classes = $classes->whereIn('id', $ownClassIds)->values();
+        }
+
         $currentSemester = $stats->currentSemester($schoolId);
         $evaluationTypes = $evaluationTypeRepository->all();
 
@@ -92,9 +100,21 @@ class BulletinController extends Controller
 
         $selectedClass = $classId ? $classes->firstWhere('id', (int) $classId) : null;
         $subjects = $selectedClass ? $selectedClass->subjects()->orderBy('name')->get() : collect();
+        // A subject teacher only ever sees their own matière(s). The class's
+        // professeur principal is the one exception: they can additionally
+        // *see* every other matière too (read-only — storeGrades/destroy/
+        // publish/unpublish below still reject anything but their own
+        // subject via teachesSubject(), so this never grants edit rights).
+        $isHeadTeacherOfClass = false;
         if ($selectedClass && $teacher = auth()->user()->teacher) {
-            $subjects = $subjects->filter(fn ($subject) => $teacher->teachesSubject($subject->id))->values();
+            $isHeadTeacherOfClass = $teacher->isHeadTeacherOf($selectedClass->id);
+            if (!$isHeadTeacherOfClass) {
+                $subjects = $subjects->filter(fn ($subject) => $teacher->teachesSubject($subject->id))->values();
+            }
         }
+        $readOnly = $selectedClass && $subjectId && $teacherForClasses
+            ? !$teacherForClasses->teachesSubject((int) $subjectId)
+            : false;
         $students = collect();
         $existingGrades = collect();
         $columns = collect();
@@ -120,7 +140,7 @@ class BulletinController extends Controller
         }
 
         return view('SchoolDashboard::bulletins.grades', compact(
-            'classes', 'selectedClass', 'subjects', 'students', 'existingGrades', 'evaluationTypes', 'columns', 'currentSemester', 'classId', 'subjectId', 'stats', 'subjectPublicationStatus'
+            'classes', 'selectedClass', 'subjects', 'students', 'existingGrades', 'evaluationTypes', 'columns', 'currentSemester', 'classId', 'subjectId', 'stats', 'subjectPublicationStatus', 'readOnly', 'isHeadTeacherOfClass'
         ));
     }
 
@@ -181,6 +201,7 @@ class BulletinController extends Controller
 
         $teacher = auth()->user()->teacher;
         abort_if($teacher && !$teacher->teachesSubject((int) $data['subject_id']), 403, "Vous ne pouvez saisir des notes que pour vos propres matières.");
+        abort_if($teacher && !$teacher->classes->contains('id', (int) $data['class_id']), 403, "Vous ne pouvez saisir des notes que pour vos propres classes.");
 
         $validTypeIds = $evaluationTypeRepository->all()->pluck('id')->all();
         foreach ($data['entries'] as $typeEntries) {

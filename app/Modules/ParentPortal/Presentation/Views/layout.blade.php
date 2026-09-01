@@ -6,8 +6,10 @@
     <title>@yield('title', 'Espace Parent') - Academia ERP</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>body { font-family: 'Poppins', sans-serif; }</style>
+    @include('SchoolDashboard::components.searchable-select')
 </head>
 <body class="bg-slate-50 min-h-screen">
     <header class="bg-white border-b border-slate-200">

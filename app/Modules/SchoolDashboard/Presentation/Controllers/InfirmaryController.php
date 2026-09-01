@@ -12,7 +12,10 @@ use App\Modules\Infirmary\Application\Services\InfirmaryStatsService;
 use App\Modules\Infirmary\Application\UseCases\AdjustMedicationStockUseCase;
 use App\Modules\Infirmary\Application\UseCases\CreateMedicationUseCase;
 use App\Modules\Infirmary\Application\UseCases\RecordInterventionUseCase;
+use App\Modules\Infirmary\Domain\Models\Allergy as InfirmaryAllergy;
 use App\Modules\Infirmary\Domain\Models\Intervention;
+use App\Modules\Infirmary\Domain\Models\PrescriptionDocument;
+use App\Modules\Infirmary\Domain\Models\Vaccine;
 use App\Modules\Infirmary\Domain\Repositories\ConsultationMotiveRepositoryInterface;
 use App\Modules\Infirmary\Domain\Repositories\InterventionRepositoryInterface;
 use App\Modules\Infirmary\Domain\Repositories\MedicationRepositoryInterface;
@@ -42,7 +45,17 @@ class InfirmaryController extends Controller
         $motives = $motiveRepository->all();
         $recent = $interventionRepository->recent(10);
 
-        return view('SchoolDashboard::infirmary.interventions', compact('motives', 'recent'));
+        // Real weekly recap — replaces a generic "cas similaires, vérifiez
+        // une allergie saisonnière" claim with nothing behind it.
+        $weekMotiveCounts = $recent->filter(fn ($i) => $i->created_at >= now()->subDays(7))
+            ->countBy('motive')
+            ->sortDesc();
+        $topMotiveThisWeek = $weekMotiveCounts->keys()->first();
+        $topMotiveCount = $weekMotiveCounts->first();
+
+        return view('SchoolDashboard::infirmary.interventions', compact(
+            'motives', 'recent', 'topMotiveThisWeek', 'topMotiveCount'
+        ));
     }
 
     public function storeIntervention(Request $request, RecordInterventionUseCase $useCase)
@@ -108,25 +121,38 @@ class InfirmaryController extends Controller
             ->groupBy('student_id')
             ->pluck('last_visit', 'student_id');
 
-        $students->each(function ($student) use ($lastVisits) {
+        $parentReportedAllergyStudentIds = InfirmaryAllergy::where('school_id', auth()->user()->school_id)
+            ->whereIn('student_id', $students->pluck('id'))
+            ->pluck('student_id')
+            ->unique();
+
+        $students->each(function ($student) use ($lastVisits, $parentReportedAllergyStudentIds) {
             $student->last_visit = $lastVisits->get($student->id);
+            $student->has_parent_reported_allergy = $parentReportedAllergyStudentIds->contains($student->id);
         });
 
         $selectedStudent = null;
         $history = collect();
+        $parentVaccines = collect();
+        $parentAllergies = collect();
+        $parentPrescriptions = collect();
 
         if ($request->filled('student')) {
             $selectedStudent = $students->firstWhere('id', (int) $request->get('student'));
 
             if ($selectedStudent) {
                 $history = $interventionRepository->forStudent($selectedStudent->id);
+                $parentVaccines = Vaccine::where('student_id', $selectedStudent->id)->orderByDesc('administered_at')->get();
+                $parentAllergies = InfirmaryAllergy::where('student_id', $selectedStudent->id)->orderByDesc('created_at')->get();
+                $parentPrescriptions = PrescriptionDocument::where('student_id', $selectedStudent->id)->orderByDesc('created_at')->get();
             }
         }
 
         $showFullHistory = $request->boolean('full_history');
 
         return view('SchoolDashboard::infirmary.students', compact(
-            'students', 'selectedStudent', 'history', 'showFullHistory'
+            'students', 'selectedStudent', 'history', 'showFullHistory',
+            'parentVaccines', 'parentAllergies', 'parentPrescriptions'
         ));
     }
 
@@ -135,20 +161,26 @@ class InfirmaryController extends Controller
         $student = $studentRepository->find($id);
         $history = $interventionRepository->forStudent($id);
         $school = auth()->user()->school;
+        $parentVaccines = Vaccine::where('student_id', $id)->orderByDesc('administered_at')->get();
+        $parentAllergies = InfirmaryAllergy::where('student_id', $id)->orderByDesc('created_at')->get();
+        $parentPrescriptions = PrescriptionDocument::where('student_id', $id)->orderByDesc('created_at')->get();
 
-        return view('SchoolDashboard::infirmary.print', compact('student', 'history', 'school'));
+        return view('SchoolDashboard::infirmary.print', compact(
+            'student', 'history', 'school', 'parentVaccines', 'parentAllergies', 'parentPrescriptions'
+        ));
     }
 
     public function pharmacy(MedicationRepositoryInterface $medicationRepository, InfirmaryStatsService $statsService)
     {
         $medications = $medicationRepository->paginate(10);
+        $allMedications = $medicationRepository->all();
         $expiringSoon = $medicationRepository->expiringWithin(30);
         $globalStockLevel = $medicationRepository->globalStockLevel();
         $recentMovements = $medicationRepository->recentMovements(5);
         $stockoutRisk = $statsService->stockoutRisk();
 
         return view('SchoolDashboard::infirmary.pharmacy', compact(
-            'medications', 'expiringSoon', 'globalStockLevel', 'recentMovements', 'stockoutRisk'
+            'medications', 'allMedications', 'expiringSoon', 'globalStockLevel', 'recentMovements', 'stockoutRisk'
         ));
     }
 

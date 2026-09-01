@@ -4,9 +4,11 @@ namespace App\Modules\Canteen\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use App\Support\Tenancy\BelongsToSchool;
 
 class MenuItem extends Model
 {
+    use BelongsToSchool;
     protected $table = 'canteen_menu_items';
 
     protected $fillable = [

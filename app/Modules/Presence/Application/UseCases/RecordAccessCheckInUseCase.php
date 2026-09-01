@@ -18,8 +18,25 @@ class RecordAccessCheckInUseCase
         $this->repository = $repository;
     }
 
-    public function execute(int $schoolId, string $scannedCode, string $action, ?int $accessPointId, ?int $branchId = null): AccessLog
-    {
+    public function execute(
+        int $schoolId,
+        string $scannedCode,
+        string $action,
+        ?int $accessPointId,
+        ?int $branchId = null,
+        ?string $clientScanId = null,
+        ?Carbon $occurredAt = null
+    ): AccessLog {
+        // Idempotent replay: the offline-capable scanner app may upload the
+        // same queued scan twice (e.g. it never saw the sync response) —
+        // return what was already recorded instead of creating a duplicate.
+        if ($clientScanId !== null) {
+            $existing = AccessLog::where('client_scan_id', $clientScanId)->first();
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         $raw = trim($scannedCode);
         $matricule = str_contains($raw, ':') ? substr($raw, strrpos($raw, ':') + 1) : $raw;
 
@@ -31,12 +48,13 @@ class RecordAccessCheckInUseCase
             'holder_type' => $holder['type'],
             'holder_id' => $holder['id'],
             'scanned_code' => $raw,
+            'client_scan_id' => $clientScanId,
             'person_name' => $holder['name'],
             'role_label' => $holder['role'],
             'action' => $action,
             'access_point_id' => $accessPointId,
             'authorized' => $holder['type'] !== null,
-            'occurred_at' => Carbon::now(),
+            'occurred_at' => $occurredAt ?? Carbon::now(),
         ]);
     }
 

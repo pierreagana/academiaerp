@@ -22,7 +22,13 @@
             </div>
             <div>
                 <label class="block text-[12px] font-bold text-slate-600 mb-1.5">Zone</label>
-                <input type="text" name="zone" value="{{ $isEdit ? $route->zone : '' }}" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-[13px] outline-none focus:border-[#031C5B]">
+                <input type="text" name="zone" list="zone-options" value="{{ $isEdit ? $route->zone : '' }}" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-[13px] outline-none focus:border-[#031C5B]">
+                <datalist id="zone-options">
+                    @foreach($zones ?? [] as $zoneName)
+                        <option value="{{ $zoneName }}"></option>
+                    @endforeach
+                </datalist>
+                <p class="text-[11px] text-slate-400 mt-1">Le tarif de la zone se configure via "Configurer Frais" depuis la liste des routes.</p>
             </div>
             @if($isEdit)
             <p class="text-[11.5px] text-slate-400 flex items-center gap-1.5">
@@ -37,6 +43,16 @@
                         <option value="{{ $bus->id }}" {{ $isEdit && $route->bus_id === $bus->id ? 'selected' : '' }}>{{ $bus->bus_number }}</option>
                     @endforeach
                 </select>
+            </div>
+            <div>
+                <label class="block text-[12px] font-bold text-slate-600 mb-1.5">Période</label>
+                <select name="period" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-[13px] outline-none focus:border-[#031C5B]">
+                    <option value="" {{ $isEdit && empty($route->period) ? 'selected' : '' }}>Les deux (matin et soir)</option>
+                    @foreach(\App\Modules\Transport\Domain\Models\Route::PERIODS as $value => $label)
+                        <option value="{{ $value }}" {{ $isEdit && $route->period === $value ? 'selected' : '' }}>{{ $label }} uniquement</option>
+                    @endforeach
+                </select>
+                <p class="text-[11px] text-slate-400 mt-1">Un bus peut avoir plusieurs routes actives pour la même période (ex : 2 tournées le matin).</p>
             </div>
             <div>
                 <label class="block text-[12px] font-bold text-slate-600 mb-1.5">Statut</label>

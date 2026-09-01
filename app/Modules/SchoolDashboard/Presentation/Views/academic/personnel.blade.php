@@ -150,12 +150,24 @@
                             @endif
                         </td>
                         <td class="px-5 py-4 text-right">
-                            <div class="relative flex justify-end" x-data="{ open: false }" @click.away="open = false">
-                                <button @click="open = !open" class="p-1.5 text-slate-400 hover:text-[#031C5B] hover:bg-slate-100 rounded-lg transition">
+                            <div class="relative flex justify-end" x-data="{ open: false, openUpward: false, edgePx: 0, left: 0 }" @click.away="open = false">
+                                <button @click="
+                                    open = !open;
+                                    const r = $el.getBoundingClientRect();
+                                    // position:fixed + viewport math, not position:absolute — this row sits
+                                    // inside several nested scroll/overflow-hidden containers (the table's own
+                                    // scroll wrapper, the card, the page) that would otherwise silently clip
+                                    // the menu no matter which row it's opened from.
+                                    openUpward = (window.innerHeight - r.bottom) < 200 && r.top > (window.innerHeight - r.bottom);
+                                    edgePx = Math.max(4, openUpward ? (window.innerHeight - r.top + 4) : (r.bottom + 4));
+                                    left = r.right - 192;
+                                " class="p-1.5 text-slate-400 hover:text-[#031C5B] hover:bg-slate-100 rounded-lg transition">
                                     <i class="ph-bold ph-dots-three-vertical text-xl"></i>
                                 </button>
 
-                                <div x-show="open" x-transition.opacity class="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-20 py-1" style="display: none;">
+                                <div x-show="open" x-transition.opacity
+                                     :style="openUpward ? `position: fixed; bottom: ${edgePx}px; left: ${left}px;` : `position: fixed; top: ${edgePx}px; left: ${left}px;`"
+                                     class="w-48 max-h-[70vh] overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg z-[60] py-1" style="display: none;">
                                     <form action="{{ route('school.academic.cards.print', 'staff') }}" method="POST" target="_blank">
                                         @csrf
                                         <input type="hidden" name="holder_type" value="staff">

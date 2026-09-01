@@ -3,7 +3,9 @@
 namespace App\Modules\SchoolDashboard\Presentation\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\SuperAdmin\Domain\Models\PlanChangeRequest;
 use App\Modules\SuperAdmin\Domain\Models\SaasModule;
+use App\Modules\SuperAdmin\Domain\Models\SaasPackage;
 use App\Modules\SuperAdmin\Domain\Models\SchoolExtensionRequest;
 use Illuminate\Http\Request;
 
@@ -89,5 +91,53 @@ class ExtensionController extends Controller
         );
 
         return back()->with('success', "Votre demande d'activation pour « {$module->name} » a été envoyée. Notre équipe vous contactera pour la facturation.");
+    }
+
+    public function plans()
+    {
+        $this->ensureAdmin();
+
+        $school = auth()->user()->school;
+        $currentPackage = $school->activePackage();
+
+        $pendingRequest = $school->planChangeRequests()->where('status', 'pending')->with('requestedPackage')->latest()->first();
+
+        $packages = SaasPackage::where('status', 'active')->orderBy('price')->get();
+
+        return view('SchoolDashboard::plans', [
+            'packages' => $packages,
+            'currentPackage' => $currentPackage,
+            'pendingRequest' => $pendingRequest,
+        ]);
+    }
+
+    public function requestPlan(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $validated = $request->validate([
+            'package_id' => ['required', 'exists:saas_packages,id'],
+        ]);
+
+        $school = auth()->user()->school;
+        $package = SaasPackage::findOrFail($validated['package_id']);
+
+        if ($school->plan_name === $package->name) {
+            return back()->with('error', "« {$package->name} » est déjà votre forfait actuel.");
+        }
+
+        $existing = $school->planChangeRequests()->where('status', 'pending')->first();
+        if ($existing) {
+            return back()->with('error', "Une demande de changement de forfait est déjà en cours de traitement.");
+        }
+
+        PlanChangeRequest::create([
+            'school_id' => $school->id,
+            'requested_package_id' => $package->id,
+            'status' => 'pending',
+            'requested_by' => auth()->id(),
+        ]);
+
+        return back()->with('success', "Votre demande de passage au forfait « {$package->name} » a été envoyée. Notre équipe vous contactera pour la facturation.");
     }
 }

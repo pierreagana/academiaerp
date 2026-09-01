@@ -3,9 +3,11 @@
 namespace App\Modules\Library\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class LibrarySetting extends Model
 {
+    use BelongsToSchool;
     protected $fillable = [
         'school_id',
         'max_books_per_student',

@@ -49,7 +49,7 @@
                 @if(isset($editClass))
                     @method('PUT')
                 @endif
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                     <!-- Nom -->
                     <div>
@@ -62,23 +62,18 @@
                     <!-- Niveau -->
                     <div>
                         <label for="level" class="block text-[13px] font-semibold text-slate-700 mb-1.5">Niveau <span class="text-red-500">*</span></label>
-                        <input type="text" id="level" name="level" required value="{{ old('level', $editClass->level ?? '') }}"
-                            class="w-full bg-[#FAFBFC] border border-slate-200 text-slate-900 text-[14px] font-medium rounded-lg px-4 py-2.5 outline-none focus:border-[#2F5F76] focus:ring-1 focus:ring-[#2F5F76] transition shadow-sm"
-                            placeholder="Ex: 6ème, 5ème, CP...">
-                        <p class="text-[11.5px] text-slate-400 mt-1">Utilisé pour le transfert (même niveau) et la promotion (niveau différent) des élèves.</p>
-                    </div>
-
-                    <!-- Cycle -->
-                    <div>
-                        <label for="cycle" class="block text-[13px] font-semibold text-slate-700 mb-1.5">Cycle</label>
-                        <select id="cycle" name="cycle"
+                        <select id="level" name="level" required
                             class="w-full bg-[#FAFBFC] border border-slate-200 text-slate-900 text-[14px] font-medium rounded-lg px-4 py-2.5 outline-none focus:border-[#2F5F76] focus:ring-1 focus:ring-[#2F5F76] transition shadow-sm">
-                            <option value="">Non défini</option>
-                            @foreach(['Cycle 1', 'Cycle 2', 'Cycle 3'] as $cycleOption)
-                                <option value="{{ $cycleOption }}" {{ old('cycle', $editClass->cycle ?? '') === $cycleOption ? 'selected' : '' }}>{{ $cycleOption }}</option>
+                            <option value="">Sélectionner...</option>
+                            @foreach(\App\Modules\Academic\Domain\Models\AcademicClass::LEVELS_BY_CYCLE as $cycleGroup => $levels)
+                                <optgroup label="{{ $cycleGroup }}">
+                                    @foreach($levels as $levelOption)
+                                        <option value="{{ $levelOption }}" {{ old('level', $editClass->level ?? '') === $levelOption ? 'selected' : '' }}>{{ $levelOption }}</option>
+                                    @endforeach
+                                </optgroup>
                             @endforeach
                         </select>
-                        <p class="text-[11.5px] text-slate-400 mt-1">Utilisé par le Livret Scolaire pour rattacher le bon référentiel de compétences.</p>
+                        <p class="text-[11.5px] text-slate-400 mt-1">Utilisé pour le transfert et la promotion des élèves, et détermine automatiquement le cycle rattaché au Livret Scolaire.</p>
                     </div>
                 </div>
                 

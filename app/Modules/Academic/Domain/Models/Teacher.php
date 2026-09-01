@@ -5,10 +5,11 @@ namespace App\Modules\Academic\Domain\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Teacher extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, BelongsToSchool;
 
     public const CONTRACT_TYPES = [
         'cdi' => 'CDI',
@@ -75,5 +76,15 @@ class Teacher extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /** Real school-wide badge-in for today ("présence à l'école") — distinct from per-course TeacherSessionCheckin. */
+    public function hasCheckedInAtSchoolToday(): bool
+    {
+        return \App\Modules\Presence\Domain\Models\AccessLog::where('holder_type', 'teacher')
+            ->where('holder_id', $this->id)
+            ->where('action', \App\Modules\Presence\Domain\Models\AccessLog::ACTION_ENTRY)
+            ->whereDate('occurred_at', now()->toDateString())
+            ->exists();
     }
 }

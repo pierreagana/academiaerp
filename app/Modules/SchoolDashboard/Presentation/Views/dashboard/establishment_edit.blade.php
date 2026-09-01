@@ -44,11 +44,77 @@
                 @error('logo') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
             </div>
 
+            <!-- Secteur / Statut Juridique -->
+            <div class="md:col-span-1">
+                <label class="block text-sm font-bold text-slate-700 mb-1">Secteur / Statut Juridique</label>
+                <select name="sector" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition text-sm font-semibold text-slate-800">
+                    @foreach($availableSectors ?? ['Privé', 'Public', 'Semi-privé'] as $sec)
+                        <option value="{{ $sec }}" {{ old('sector', $school->sector) === $sec ? 'selected' : '' }}>{{ $sec }}</option>
+                    @endforeach
+                </select>
+                @error('sector') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+            </div>
+
+            <!-- Régime Linguistique (Bilingue ou non) -->
+            <div class="md:col-span-1">
+                <label class="block text-sm font-bold text-slate-700 mb-1">Régime Linguistique</label>
+                <select name="language_regime" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition text-sm font-semibold text-slate-800">
+                    @foreach($availableLanguageRegimes ?? ['Monolingue (Français)', 'Bilingue (Français / Anglais)', 'International / Trilingue'] as $lang)
+                        <option value="{{ $lang }}" {{ old('language_regime', $school->language_regime) === $lang ? 'selected' : '' }}>{{ $lang }}</option>
+                    @endforeach
+                </select>
+                @error('language_regime') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+            </div>
+
+            <!-- Niveaux & Ordres d'Enseignement (Multisélection) -->
+            <div class="md:col-span-2">
+                <label class="block text-sm font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span>Niveaux d'Enseignement Dispensés</span>
+                    <span class="text-xs text-slate-400 font-normal">Cochez tous les ordres d'enseignement assurés</span>
+                </label>
+                @php
+                    $currentLevels = is_array($school->levels) ? $school->levels : (is_string($school->levels) ? json_decode($school->levels, true) : []);
+                    $currentLevels = is_array($currentLevels) ? $currentLevels : [];
+                @endphp
+                <div class="flex flex-wrap gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    @foreach($availableLevels ?? ['Préscolaire', 'Primaire', 'Collège', 'Lycée'] as $lvl)
+                        <label class="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-primary-dynamic transition text-xs font-bold text-slate-700 select-none">
+                            <input type="checkbox" name="levels[]" value="{{ $lvl }}"
+                                   {{ in_array($lvl, old('levels', $currentLevels)) ? 'checked' : '' }}
+                                   class="rounded text-primary-dynamic focus:ring-primary-dynamic">
+                            <i class="ph ph-graduation-cap text-primary-dynamic"></i>
+                            <span>{{ $lvl }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <!-- Heures de cours -->
+            <div class="md:col-span-1">
+                <label class="block text-sm font-bold text-slate-700 mb-1">Heure de début des cours</label>
+                <input type="time" name="day_start_time" value="{{ old('day_start_time', $school->day_start_time ? \Carbon\Carbon::parse($school->day_start_time)->format('H:i') : '') }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                <p class="text-[11px] text-slate-400 mt-1">Aucun cours ne pourra être programmé avant cette heure.</p>
+                @error('day_start_time') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+            </div>
+            <div class="md:col-span-1">
+                <label class="block text-sm font-bold text-slate-700 mb-1">Heure de fin des cours</label>
+                <input type="time" name="day_end_time" value="{{ old('day_end_time', $school->day_end_time ? \Carbon\Carbon::parse($school->day_end_time)->format('H:i') : '') }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
+                <p class="text-[11px] text-slate-400 mt-1">Aucun cours ne pourra dépasser cette heure.</p>
+                @error('day_end_time') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+            </div>
+
             <!-- Téléphone -->
             <div class="md:col-span-1">
                 <label class="block text-sm font-bold text-slate-700 mb-1">Téléphone *</label>
-                <input type="text" name="contact_phone" value="{{ old('contact_phone', $school->contact_phone) }}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
-                @error('contact_phone') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                @php [$schoolPhoneCode, $schoolPhoneNumber] = \App\Modules\SuperAdmin\Domain\Models\Country::splitPhone($school->contact_phone); @endphp
+                @include('SchoolDashboard::components.phone-input', [
+                    'selectedCode' => $schoolPhoneCode,
+                    'selectedNumber' => $schoolPhoneNumber,
+                    'required' => true,
+                    'selectClass' => 'w-[110px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-3 outline-none focus:border-blue-600 focus:bg-white transition cursor-pointer',
+                    'inputClass' => 'flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition',
+                ])
+                @error('phone_number') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
             </div>
 
             <!-- Email -->
@@ -62,11 +128,84 @@
             <div class="md:col-span-2 relative">
                 <label class="block text-sm font-bold text-slate-700 mb-1">Adresse / Position géographique</label>
                 <input type="text" id="address_search" name="location" value="{{ old('location', $school->location) }}" placeholder="Rechercher une ville, une rue..." autocomplete="off" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
-                <ul id="autocomplete-results" class="absolute z-[100] w-full bg-white border border-slate-200 rounded-lg shadow-xl mt-1 hidden max-h-48 overflow-y-auto"></ul>
+                <ul id="autocomplete-results" class="absolute z-[1100] w-full bg-white border border-slate-200 rounded-lg shadow-xl mt-1 hidden max-h-48 overflow-y-auto"></ul>
                 
                 <div id="map" class="w-full h-64 mt-3 rounded-xl border border-slate-200 z-10 relative"></div>
                 <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude', $school->latitude ?? 5.359951) }}">
                 <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude', $school->longitude ?? -4.008256) }}">
+            </div>
+
+            <!-- Équipements & Services Scolaires (Multisélection) -->
+            <div class="md:col-span-2 pt-4 border-t border-slate-100">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-800">Équipements & Services de l'Établissement</label>
+                        <p class="text-xs text-slate-500 mt-0.5">Cochez les commodités et installations disponibles dans votre école.</p>
+                    </div>
+                    <span class="text-xs font-semibold text-primary-dynamic bg-blue-50 px-2.5 py-1 rounded-lg">Catalogue SuperAdmin</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                    @forelse($facilities ?? [] as $facility)
+                        <label class="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-primary-dynamic transition select-none group">
+                            <input type="checkbox" name="facilities[]" value="{{ $facility->id }}"
+                                   {{ in_array($facility->id, $selectedFacilityIds ?? []) ? 'checked' : '' }}
+                                   class="mt-0.5 rounded text-primary-dynamic focus:ring-primary-dynamic">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-blue-50 group-hover:text-primary-dynamic text-slate-700 flex items-center justify-center text-base shrink-0 transition">
+                                <i class="ph {{ $facility->icon }}"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold text-slate-800 group-hover:text-primary-dynamic transition">{{ $facility->name }}</p>
+                                <p class="text-[10.5px] text-slate-400 truncate">{{ $facility->category }}</p>
+                            </div>
+                        </label>
+                    @empty
+                        <div class="col-span-3 text-center py-4 text-xs text-slate-400">
+                            Aucun équipement disponible dans le catalogue pour le moment.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- Catalogue photos (max 6) -->
+            <div class="md:col-span-2 pt-4 border-t border-slate-100" x-data="{ previews: [] }">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-800">Catalogue photos de l'établissement</label>
+                        <p class="text-xs text-slate-500 mt-0.5">Ajoutez jusqu'à {{ \App\Modules\SuperAdmin\Domain\Models\School::CATALOG_MAX_PHOTOS }} photos (bâtiments, salles, cour...).</p>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-500">{{ count($school->catalog_paths ?? []) }}/{{ \App\Modules\SuperAdmin\Domain\Models\School::CATALOG_MAX_PHOTOS }}</span>
+                </div>
+
+                <template x-if="previews.length > 0">
+                    <div class="mb-4">
+                        <p class="text-xs font-semibold text-blue-700 mb-2">Nouvelles photos sélectionnées (pas encore enregistrées) :</p>
+                        <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
+                            <template x-for="(url, i) in previews" :key="i">
+                                <img :src="url" class="w-full h-24 object-cover rounded-xl border-2 border-blue-300">
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                @if(!empty($school->catalog_paths))
+                    <div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-3">
+                        @foreach($school->catalog_paths as $path)
+                            <div class="relative group">
+                                <img src="{{ Storage::url($path) }}" class="w-full h-24 object-cover rounded-xl border border-slate-200">
+                                <label class="absolute top-1 right-1 bg-white/90 rounded-full p-1 cursor-pointer">
+                                    <input type="checkbox" name="remove_catalog[]" value="{{ $path }}" class="align-middle">
+                                </label>
+                            </div>
+                        @endforeach
+                    </div>
+                    <p class="text-xs text-slate-500 mb-2">Cochez une photo pour la supprimer à l'enregistrement.</p>
+                @endif
+                <input type="file" name="catalog[]" accept="image/*" multiple
+                    @change="previews = Array.from($event.target.files).map(f => URL.createObjectURL(f))"
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-[9px] outline-none focus:border-blue-600 focus:bg-white transition file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:bg-slate-200 file:text-slate-700">
+                @error('catalog') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('catalog.*') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
         </div>
 

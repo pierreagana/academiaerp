@@ -112,10 +112,12 @@
             <div class="value">{{ $average !== null ? $average . '/20' : '—' }}</div>
             <div class="label">Moy. Générale</div>
         </div>
+        @if($template->show_ranking)
         <div class="stat-box">
             <div class="value">{{ $rank ? $rank . 'e' : '—' }}</div>
             <div class="label">Rang @if($classSize) sur {{ $classSize }} @endif</div>
         </div>
+        @endif
         <div class="stat-box">
             <div class="value">{{ $unjustifiedAbsences }}</div>
             <div class="label">Absences Injustifiées</div>

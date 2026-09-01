@@ -1,6 +1,6 @@
 @extends('SchoolDashboard::layouts.app')
 
-@section('title', 'Profil School Track')
+@section('title', 'Modifier le profil School Track')
 
 @section('content')
 @php
@@ -21,19 +21,10 @@
 @endphp
 <div class="space-y-6 max-w-4xl mx-auto">
     <div class="flex items-center justify-between">
-        <div>
-            <h2 class="text-2xl font-bold text-slate-800">Profil School Track</h2>
-            <p class="text-sm text-slate-500 mt-1">Ce profil est ce que les parents voient dans l'outil de recherche/comparaison d'écoles de l'application mobile.</p>
-        </div>
-        @if($isComplete)
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-200">
-                <i class="ph ph-check-circle text-sm"></i> Profil complet — visible sur School Track
-            </span>
-        @else
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-bold rounded-full border border-amber-200">
-                <i class="ph ph-warning-circle text-sm"></i> Profil incomplet — non visible
-            </span>
-        @endif
+        <h2 class="text-2xl font-bold text-slate-800">Modifier le profil School Track</h2>
+        <a href="{{ route('school.school-track') }}" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 transition">
+            Annuler
+        </a>
     </div>
 
     @if(session('success'))
@@ -85,12 +76,14 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">Taux de réussite (%)</label>
-                <input type="number" name="success_rate" min="0" max="100" value="{{ old('success_rate', $school->success_rate) }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-600 focus:bg-white transition">
-                @error('success_rate') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
-            </div>
+        <div class="flex items-start gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+            <i class="ph ph-info text-blue-600 text-lg mt-0.5"></i>
+            <p class="text-xs text-blue-800 leading-relaxed">
+                Le taux de réussite (BAC/BEPC/CEPE/BTS) et la progression annuelle ne se saisissent plus ici : ils sont
+                calculés automatiquement depuis vos résultats d'examens validés et les promotions de classe.
+                Rendez-vous sur <a href="{{ route('school.exam-results.index') }}" class="font-bold underline">Résultats aux examens</a> pour les renseigner,
+                ou consultez-les sur le <a href="{{ route('school.school-track') }}" class="font-bold underline">profil</a>.
+            </p>
         </div>
 
         <div>
@@ -102,27 +95,6 @@
                         <input type="number" name="academic_radar[{{ $key }}]" min="0" max="100" value="{{ old('academic_radar.' . $key, $currentRadar[$key] ?? '') }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-600 focus:bg-white transition">
                     </div>
                 @endforeach
-            </div>
-        </div>
-
-        <div x-data="{
-            places: {{ Illuminate\Support\Js::from(count($school->nearby_places ?? []) ? $school->nearby_places : [['emoji' => '📍', 'label' => '', 'distance' => '']]) }}
-        }">
-            <label class="block text-sm font-bold text-slate-700 mb-2">Lieux à proximité</label>
-            <div class="space-y-2">
-                <template x-for="(place, index) in places" :key="index">
-                    <div class="flex items-center gap-2">
-                        <input type="text" :name="'nearby_places[' + index + '][emoji]'" x-model="place.emoji" placeholder="🏥" class="w-16 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-600 focus:bg-white transition text-center">
-                        <input type="text" :name="'nearby_places[' + index + '][label]'" x-model="place.label" placeholder="Hôpital régional" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-600 focus:bg-white transition">
-                        <input type="text" :name="'nearby_places[' + index + '][distance]'" x-model="place.distance" placeholder="500m" class="w-28 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-600 focus:bg-white transition">
-                        <button type="button" @click="places.splice(index, 1)" class="text-red-500 hover:text-red-700 px-2">
-                            <i class="ph ph-trash"></i>
-                        </button>
-                    </div>
-                </template>
-                <button type="button" @click="places.push({emoji: '📍', label: '', distance: ''})" class="text-sm font-semibold text-blue-600 hover:text-blue-800 mt-1">
-                    + Ajouter un lieu
-                </button>
             </div>
         </div>
 

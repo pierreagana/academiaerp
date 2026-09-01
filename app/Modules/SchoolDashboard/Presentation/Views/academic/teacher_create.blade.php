@@ -127,8 +127,8 @@
                     <i class="ph-fill ph-sparkle text-[#9333EA] text-xl"></i>
                     <h3 class="font-extrabold text-slate-800 text-[14px]">Assistant IA</h3>
                 </div>
-                <p class="text-[13px] text-slate-600 font-medium leading-relaxed pl-8">
-                    Une fois la spécialité renseignée, l'IA suggérera une allocation d'heures optimale basée sur les besoins actuels de l'établissement.
+                <p id="teacherHoursSuggestionText" class="text-[13px] text-slate-600 font-medium leading-relaxed pl-8">
+                    Sélectionnez une spécialité pour recevoir une suggestion d'allocation d'heures basée sur les données réelles de l'établissement.
                 </p>
             </div>
         </div>
@@ -195,8 +195,14 @@
 
                         <!-- Téléphone -->
                         <div class="space-y-1.5">
-                            <label for="phone" class="block text-[13px] font-bold text-slate-700">Numéro de Téléphone</label>
-                            <input type="text" id="phone" name="phone" value="{{ old('phone', $teacher->phone ?? '') }}" placeholder="+221 77 000 00 00" class="w-full bg-[#F8FAFC] border border-slate-200 text-slate-900 text-[14px] rounded-lg px-4 py-2.5 outline-none focus:border-[#1E40AF] focus:ring-2 focus:ring-[#1E40AF]/10 transition-all placeholder:text-slate-400">
+                            <label for="phone_number" class="block text-[13px] font-bold text-slate-700">Numéro de Téléphone</label>
+                            @php [$teacherPhoneCode, $teacherPhoneNumber] = \App\Modules\SuperAdmin\Domain\Models\Country::splitPhone($teacher->phone ?? null); @endphp
+                            @include('SchoolDashboard::components.phone-input', [
+                                'selectedCode' => $teacherPhoneCode,
+                                'selectedNumber' => $teacherPhoneNumber,
+                                'selectClass' => 'w-[110px] bg-[#F8FAFC] border border-slate-200 text-slate-900 text-[13px] rounded-lg px-2 py-2.5 outline-none focus:border-[#1E40AF] focus:ring-2 focus:ring-[#1E40AF]/10 transition-all cursor-pointer',
+                                'inputClass' => 'flex-1 bg-[#F8FAFC] border border-slate-200 text-slate-900 text-[14px] rounded-lg px-4 py-2.5 outline-none focus:border-[#1E40AF] focus:ring-2 focus:ring-[#1E40AF]/10 transition-all placeholder:text-slate-400',
+                            ])
                         </div>
 
                         <!-- Adresse -->
@@ -490,4 +496,44 @@
         {{ isset($teacher) ? 'Enregistrer les modifications' : 'Créer le profil' }}
     </button>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let debounceTimer = null;
+        const textEl = document.getElementById('teacherHoursSuggestionText');
+
+        document.querySelectorAll('input[name="subject_ids[]"]').forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(fetchHoursSuggestion, 500);
+            });
+        });
+
+        function fetchHoursSuggestion() {
+            const ids = Array.from(document.querySelectorAll('input[name="subject_ids[]"]:checked')).map(cb => cb.value);
+            if (ids.length === 0) {
+                textEl.innerText = "Sélectionnez une spécialité pour recevoir une suggestion d'allocation d'heures basée sur les données réelles de l'établissement.";
+                return;
+            }
+
+            textEl.innerText = "Analyse des données de l'établissement en cours...";
+
+            fetch('{{ route("school.academic.teachers.ai-suggest-hours") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ subject_ids: ids })
+            })
+            .then(res => res.json())
+            .then(data => {
+                textEl.innerText = data.success ? data.suggestion : (data.error || "Suggestion IA indisponible pour le moment.");
+            })
+            .catch(() => {
+                textEl.innerText = "Erreur de communication avec le serveur.";
+            });
+        }
+    });
+</script>
 @endsection

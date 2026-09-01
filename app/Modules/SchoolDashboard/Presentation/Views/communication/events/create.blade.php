@@ -274,10 +274,10 @@
             <div class="bg-gradient-to-br from-[#F5F3FF] to-purple-50/50 border border-purple-100 rounded-2xl p-5 shadow-sm">
                 <div class="flex items-center gap-2 mb-2">
                     <i class="ph-fill ph-sparkle text-purple-600 text-lg"></i>
-                    <h3 class="font-extrabold text-slate-800 text-[14px]">Assistant Logistique IA</h3>
+                    <h3 class="font-extrabold text-slate-800 text-[14px]">Assistant Logistique</h3>
                 </div>
-                <p class="text-[12.5px] text-slate-600 font-medium leading-relaxed">
-                    EduAfrica AI peut pré-remplir les besoins matériels et estimer le budget en se basant sur les événements similaires de l'établissement.
+                <p class="text-[12.5px] text-slate-600 font-medium leading-relaxed" id="eventLogisticsSuggestionText">
+                    Sélectionnez un type d'événement pour voir le budget moyen de vos événements précédents du même type.
                 </p>
             </div>
 
@@ -293,4 +293,34 @@
         </div>
     </form>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const typeSelect = document.getElementById('type');
+        const textEl = document.getElementById('eventLogisticsSuggestionText');
+        if (!typeSelect) return;
+
+        typeSelect.addEventListener('change', function () {
+            if (!this.value) return;
+            textEl.innerText = "Recherche des événements précédents...";
+
+            fetch('{{ route("school.communication.events.ai-logistics-suggestion") }}?type=' + encodeURIComponent(this.value), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    textEl.innerText = 'Budget moyen sur ' + data.count + ' événement(s) précédent(s) de ce type : ' +
+                        new Intl.NumberFormat('fr-FR').format(data.avg_budget) + ' FCFA.' +
+                        (data.common_equipment ? ' Équipement le plus fréquent : ' + data.common_equipment + '.' : '');
+                } else {
+                    textEl.innerText = data.message;
+                }
+            })
+            .catch(() => {
+                textEl.innerText = "Erreur de communication avec le serveur.";
+            });
+        });
+    });
+</script>
 @endsection

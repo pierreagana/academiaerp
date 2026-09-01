@@ -108,7 +108,7 @@
                         <i class="ph-fill ph-file-text text-slate-400 text-lg"></i>
                         <div>
                             <p class="text-[13px] font-semibold text-slate-800">{{ $doc->label }}</p>
-                            <p class="text-[11px] text-emerald-600 font-semibold">Vérifié</p>
+                            <p class="text-[11px] text-slate-400 font-semibold">Ajouté le {{ $doc->created_at->format('d M Y') }}</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">

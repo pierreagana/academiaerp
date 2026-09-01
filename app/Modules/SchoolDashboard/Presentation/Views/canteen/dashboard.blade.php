@@ -17,7 +17,15 @@
     @endif
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Élèves Inscrits</p>
+                <div class="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600"><i class="ph-fill ph-users text-lg"></i></div>
+            </div>
+            <h3 class="text-3xl font-bold text-slate-800">{{ number_format($stats['enrolled_count'], 0, ',', ' ') }}</h3>
+            <p class="text-[12px] text-slate-400 font-semibold mt-1">Inscriptions validées</p>
+        </div>
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
             <div class="flex items-center justify-between mb-3">
                 <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Repas Servis Aujourd'hui</p>
@@ -43,29 +51,26 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Équilibre Nutritionnel (décoratif) -->
+        <!-- Fréquentation Cantine (données réelles) -->
         <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
             <div class="flex items-center justify-between mb-2">
-                <h3 class="text-lg font-bold text-slate-900">Équilibre Nutritionnel</h3>
+                <h3 class="text-lg font-bold text-slate-900">Fréquentation Cantine</h3>
                 <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 uppercase tracking-wider"><i class="ph-fill ph-sparkle"></i> Insight IA</span>
             </div>
-            <p class="text-[13px] text-slate-500 mb-5">Analyse prédictive des menus de la semaine basée sur les recommandations nationales.</p>
+            <p class="text-[13px] text-slate-500 mb-5">Repas réellement enregistrés par jour de la semaine (4 dernières semaines).</p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div class="flex items-end justify-between gap-2 h-32">
-                    @foreach(['LUN' => 70, 'MAR' => 55, 'MER' => 85, 'JEU' => 40, 'VEN' => 78] as $day => $height)
+                    @foreach($weekdayCounts as $day => $count)
                         <div class="flex-1 flex flex-col items-center justify-end h-full gap-1.5">
-                            <div class="w-full max-w-[24px] bg-emerald-200 rounded-t-md" style="height: {{ $height }}%"></div>
+                            <span class="text-[10px] font-bold text-slate-500">{{ $count }}</span>
+                            <div class="w-full max-w-[24px] bg-emerald-200 rounded-t-md" style="height: {{ max($weekdayHeights[$day], 4) }}%"></div>
                             <span class="text-[10px] font-bold text-slate-400">{{ $day }}</span>
                         </div>
                     @endforeach
                 </div>
-                <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
-                    <p class="text-[12.5px] font-bold text-slate-800 flex items-center gap-1.5 mb-1"><i class="ph-fill ph-plant text-emerald-500"></i> Score Végétal</p>
-                    <p class="text-[12px] text-slate-500">Bon apport en protéines végétales prévu cette semaine.</p>
-                </div>
-                <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
-                    <p class="text-[12.5px] font-bold text-slate-800 flex items-center gap-1.5 mb-1"><i class="ph-fill ph-warning text-amber-500"></i> Alerte Sodium</p>
-                    <p class="text-[12px] text-slate-500">Surveillez les plats en sauce, souvent plus salés.</p>
+                <div class="md:col-span-2 bg-slate-50 rounded-xl p-3.5 border border-slate-100" id="canteenAiInsightBox">
+                    <p class="text-[12.5px] font-bold text-slate-800 flex items-center gap-1.5 mb-1"><i class="ph-fill ph-sparkle text-purple-500"></i> Analyse IA</p>
+                    <p class="text-[12px] text-slate-500" id="canteenAiInsightText">Chargement de l'analyse...</p>
                 </div>
             </div>
         </div>
@@ -92,4 +97,24 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('{{ route("school.canteen.ai-insight") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const el = document.getElementById('canteenAiInsightText');
+            el.innerText = data.success ? data.insight : (data.error || "Analyse IA indisponible pour le moment.");
+        })
+        .catch(() => {
+            document.getElementById('canteenAiInsightText').innerText = "Erreur de communication avec le serveur.";
+        });
+    });
+</script>
 @endsection

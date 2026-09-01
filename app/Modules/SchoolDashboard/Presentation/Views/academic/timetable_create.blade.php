@@ -11,6 +11,9 @@
         </div>
         
         <div class="flex flex-wrap items-center gap-3">
+            <a href="{{ route('school.academic.timetable.breaks', ['class_id' => $classId]) }}" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-[13px] px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-2">
+                <i class="ph-bold ph-coffee"></i> Gérer les pauses
+            </a>
             <button @click="saveTimetable()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-[13px] px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-2" :class="isSaving ? 'opacity-75 cursor-wait' : ''" :disabled="isSaving">
                 <span x-show="!isSaving">Enregistrer le brouillon</span>
                 <span x-show="isSaving" style="display:none;" class="flex items-center gap-2"><i class="ph-bold ph-spinner animate-spin"></i> Enregistrement...</span>
@@ -30,9 +33,11 @@
 
     <!-- Filters & Status Bar -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex items-center gap-6">
+        <div class="flex flex-wrap items-center gap-4">
             <form action="{{ route('school.academic.timetable.create') }}" method="GET" class="flex items-center gap-2 m-0">
                 <span class="text-[13px] font-semibold text-slate-700">Classe:</span>
+                <input type="hidden" name="semester_id" value="{{ $semesterId ?? '' }}">
+                <input type="hidden" name="month" value="{{ $month ?? '' }}">
                 <select name="class_id" onchange="this.form.submit()" class="appearance-none bg-white border border-slate-200 text-slate-700 text-[13px] font-medium rounded-lg px-3 py-1.5 outline-none focus:border-[#2F5F76] min-w-[140px] cursor-pointer">
                     <option value="">Sélectionner une classe</option>
                     @foreach($classes as $class)
@@ -45,17 +50,53 @@
             
             <div class="flex items-center gap-2">
                 <span class="text-[13px] font-semibold text-slate-700">Période:</span>
-                <select class="appearance-none bg-white border border-slate-200 text-slate-700 text-[13px] font-medium rounded-lg px-3 py-1.5 outline-none focus:border-[#2F5F76] min-w-[160px]">
-                    @foreach($semesters as $semester)
-                        <option value="{{ $semester->id }}">{{ $semester->name }} {{ $semester->is_current ? '(En cours)' : '' }}</option>
-                    @endforeach
-                </select>
+                <form action="{{ route('school.academic.timetable.create') }}" method="GET" id="semester-form" class="m-0">
+                    <input type="hidden" name="class_id" value="{{ $classId ?? '' }}">
+                    <select name="semester_id" onchange="document.getElementById('semester-form').submit()"
+                        class="appearance-none bg-white border border-slate-200 text-slate-700 text-[13px] font-medium rounded-lg px-3 py-1.5 outline-none focus:border-[#2F5F76] min-w-[160px] cursor-pointer">
+                        @foreach($semesters as $semester)
+                            <option value="{{ $semester->id }}" {{ (isset($semesterId) && $semesterId == $semester->id) ? 'selected' : '' }}>
+                                {{ $semester->name }} {{ $semester->is_current ? '(En cours)' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </form>
             </div>
+
+            @if(!empty($months))
+            <div class="flex items-center gap-2">
+                <span class="text-[13px] font-semibold text-slate-700">Appliquer dès :</span>
+                <form action="{{ route('school.academic.timetable.create') }}" method="GET" id="month-form" class="m-0">
+                    <input type="hidden" name="class_id" value="{{ $classId ?? '' }}">
+                    <input type="hidden" name="semester_id" value="{{ $semesterId ?? '' }}">
+                    <select name="month" onchange="document.getElementById('month-form').submit()"
+                        class="appearance-none bg-indigo-50 border border-indigo-200 text-indigo-900 text-[13px] font-bold rounded-lg px-3 py-1.5 outline-none focus:border-indigo-600 min-w-[150px] cursor-pointer">
+                        @foreach($months as $m)
+                            <option value="{{ $m['value'] }}" {{ (isset($month) && $month == $m['value']) ? 'selected' : '' }}>
+                                {{ $m['label'] }}
+                            </option>
+                        @endforeach
+                    </select>
+                </form>
+            </div>
+            @endif
         </div>
         
-        <div class="flex items-center gap-2">
-            <div class="w-2.5 h-2.5 rounded-full bg-[#7C3AED] animate-pulse"></div>
-            <span class="text-[13px] font-semibold text-slate-700">Statut: Modification en cours</span>
+        <div class="flex items-center gap-3">
+            @php
+                $activeMonthObj = collect($months ?? [])->firstWhere('value', $month ?? '');
+                $activeMonthLabel = $activeMonthObj['label'] ?? $month;
+            @endphp
+            @if($activeMonthLabel)
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11.5px] font-semibold px-3 py-1 rounded-lg flex items-center gap-1.5">
+                <i class="ph-bold ph-shield-check text-emerald-600"></i>
+                <span>Valable dès {{ $activeMonthLabel }} (semaines passées intactes)</span>
+            </div>
+            @endif
+            <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-[#7C3AED] animate-pulse"></div>
+                <span class="text-[13px] font-semibold text-slate-700">Statut: Modification</span>
+            </div>
         </div>
     </div>
 
@@ -64,8 +105,11 @@
         
         <!-- Left Panel: Resources -->
         <div class="hidden xl:flex w-[260px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-col h-[calc(100vh-230px)] min-h-[500px]">
-            <div class="p-5 border-b border-slate-100">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between gap-2">
                 <h2 class="text-[18px] font-bold text-slate-800">Ressources</h2>
+                <a href="{{ route('school.academic.timetable.breaks', ['class_id' => $classId]) }}" class="text-[11px] font-semibold text-[#2F5F76] hover:underline flex items-center gap-1 shrink-0" title="Gérer les pauses">
+                    <i class="ph-bold ph-coffee"></i> Pauses
+                </a>
             </div>
             
             <!-- Tabs -->
@@ -105,20 +149,19 @@
                     </div>
                     @endforelse
                     
-                    <div draggable="true" data-type="pause" data-name="Récréation" data-color="slate" class="resource-card bg-slate-50 border border-slate-200 rounded-xl p-3 flex gap-3 cursor-move hover:border-slate-300 hover:shadow-md transition mt-4">
-                        <div class="w-2 h-full min-h-[40px] rounded-full bg-slate-400"></div>
-                        <div class="flex-1 flex flex-col justify-center">
-                            <div class="text-[14px] font-bold text-slate-700">Récréation</div>
-                            <div class="text-[11px] text-slate-500">Temps de pause</div>
+                    <div class="mt-4 pt-3 border-t border-slate-100">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Pauses de cette classe</p>
+                        @forelse($breaks as $break)
+                        <div class="flex items-center gap-2 py-1 text-[11.5px]">
+                            <span class="w-2 h-2 rounded-full bg-{{ $break->color }}-400 shrink-0"></span>
+                            <span class="font-bold text-slate-700">{{ \App\Modules\Academic\Domain\Models\TimetableBreak::days()[$break->day_of_week] ?? $break->day_of_week }}</span>
+                            <span class="text-slate-500">{{ $break->name }}</span>
+                            <span class="text-slate-400 ml-auto">{{ substr($break->start_time, 0, 5) }}-{{ substr($break->end_time, 0, 5) }}</span>
                         </div>
-                    </div>
-                    
-                    <div draggable="true" data-type="pause" data-name="Pause Déjeuner" data-color="slate" class="resource-card bg-slate-50 border border-slate-200 rounded-xl p-3 flex gap-3 cursor-move hover:border-slate-300 hover:shadow-md transition">
-                        <div class="w-2 h-full min-h-[40px] rounded-full bg-slate-400"></div>
-                        <div class="flex-1 flex flex-col justify-center">
-                            <div class="text-[14px] font-bold text-slate-700">Pause Déjeuner</div>
-                            <div class="text-[11px] text-slate-500">Temps de pause</div>
-                        </div>
+                        @empty
+                        <p class="text-[11px] text-slate-500 font-medium">Aucune pause configurée pour cette classe.</p>
+                        @endforelse
+                        <a href="{{ route('school.academic.timetable.breaks', ['class_id' => $classId]) }}" class="text-[11px] text-[#2F5F76] font-bold hover:underline mt-2 inline-block">Gérer les pauses de cette classe</a>
                     </div>
                 </div>
                 
@@ -157,20 +200,26 @@
 
                 <!-- Grid Body -->
                 <div class="flex-1 overflow-y-auto">
-                    
-                    @php
-                        $times = ['08:00', '09:00', '10:00', '10:30', '11:30', '12:30', '14:00', '15:00', '16:00', '17:00'];
-                    @endphp
+
+                    @php $weekDays = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi']; @endphp
 
                     @foreach($times as $index => $time)
-                        
-                        <div class="grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr] border-b border-slate-100 min-h-[100px] relative {{ in_array($time, ['10:00', '12:30']) ? 'bg-[#FAFBFC]' : '' }}">
+
+                        @php $breaksByDay = $breaks->filter(fn($b) => substr($b->start_time, 0, 5) === $time)->keyBy('day_of_week'); @endphp
+
+                        <div class="grid grid-cols-[60px_1fr_1fr_1fr_1fr_1fr] border-b border-slate-100 min-h-[100px] relative">
                             <div class="p-2 border-r border-slate-200 flex justify-center pt-3 text-[11px] font-bold text-slate-500 bg-[#FAFBFC]">{{ $time }}</div>
-                            <div class="p-1.5 border-r border-slate-100 border-dashed dropzone hover:bg-slate-50 transition" data-day="lundi" data-time="{{ $time }}"></div>
-                            <div class="p-1.5 border-r border-slate-100 border-dashed dropzone hover:bg-slate-50 transition" data-day="mardi" data-time="{{ $time }}"></div>
-                            <div class="p-1.5 border-r border-slate-100 border-dashed dropzone hover:bg-slate-50 transition" data-day="mercredi" data-time="{{ $time }}"></div>
-                            <div class="p-1.5 border-r border-slate-100 border-dashed dropzone hover:bg-slate-50 transition" data-day="jeudi" data-time="{{ $time }}"></div>
-                            <div class="p-1.5 dropzone hover:bg-slate-50 transition" data-day="vendredi" data-time="{{ $time }}"></div>
+                            @foreach($weekDays as $dayIndex => $day)
+                                @php $dayBreak = $breaksByDay->get($day); @endphp
+                                <div class="p-1.5 {{ $dayIndex < 4 ? 'border-r border-slate-100' : '' }} {{ $dayBreak ? '' : 'border-dashed dropzone hover:bg-slate-50 transition' }}" @if(!$dayBreak) data-day="{{ $day }}" data-time="{{ $time }}" @endif>
+                                    @if($dayBreak)
+                                    <div class="h-full min-h-[40px] rounded-lg bg-{{ $dayBreak->color }}-50 border border-{{ $dayBreak->color }}-200 flex flex-col items-center justify-center gap-1 py-2" title="{{ $dayBreak->name }} ({{ substr($dayBreak->start_time, 0, 5) }}-{{ substr($dayBreak->end_time, 0, 5) }})">
+                                        <i class="ph-fill ph-coffee text-{{ $dayBreak->color }}-500 text-[16px]"></i>
+                                        <div class="text-[10.5px] font-bold text-{{ $dayBreak->color }}-700 text-center leading-tight px-1">{{ $dayBreak->name }}</div>
+                                    </div>
+                                    @endif
+                                </div>
+                            @endforeach
                         </div>
 
                     @endforeach
@@ -188,20 +237,15 @@
                     <h3 class="text-[18px] font-bold text-[#9333EA]">Assistant IA</h3>
                 </div>
                 
-                <p class="text-[13.5px] text-slate-600 font-medium mb-5 leading-relaxed">
-                    L'IA peut optimiser ce brouillon pour réduire les temps morts et équilibrer la charge.
+                <p class="text-[13.5px] text-slate-600 font-medium mb-5 leading-relaxed" id="timetableAiAnalysisText">
+                    Placez des cours sur la grille puis cliquez pour une analyse réelle des trous et de l'équilibre de charge entre enseignants.
                 </p>
 
                 <div class="space-y-3">
-                    <button @click="isOptimizingBreaks = true; setTimeout(() => isOptimizingBreaks = false, 2000)" class="w-full bg-white hover:bg-slate-50 border border-[#E9D5FF] text-[#9333EA] font-semibold text-[13px] py-2.5 px-4 rounded-xl shadow-sm transition flex items-center justify-between" :class="isOptimizingBreaks ? 'opacity-75 cursor-wait bg-slate-50' : ''" :disabled="isOptimizingBreaks">
-                        <span x-text="isOptimizingBreaks ? 'Optimisation...' : 'Optimiser les pauses'">Optimiser les pauses</span>
-                        <i class="ph-bold ph-lightning text-[16px]" x-show="!isOptimizingBreaks"></i>
-                        <i class="ph-bold ph-spinner animate-spin text-[16px]" x-show="isOptimizingBreaks" style="display: none;"></i>
-                    </button>
-                    <button @click="isBalancing = true; setTimeout(() => isBalancing = false, 2000)" class="w-full bg-white hover:bg-slate-50 border border-[#E9D5FF] text-[#9333EA] font-semibold text-[13px] py-2.5 px-4 rounded-xl shadow-sm transition flex items-center justify-between" :class="isBalancing ? 'opacity-75 cursor-wait bg-slate-50' : ''" :disabled="isBalancing">
-                        <span x-text="isBalancing ? 'Équilibrage...' : 'Équilibrer heures profs'">Équilibrer heures profs</span>
-                        <i class="ph-bold ph-scales text-[16px]" x-show="!isBalancing"></i>
-                        <i class="ph-bold ph-spinner animate-spin text-[16px]" x-show="isBalancing" style="display: none;"></i>
+                    <button @click="analyzeTimetableDraft()" class="w-full bg-white hover:bg-slate-50 border border-[#E9D5FF] text-[#9333EA] font-semibold text-[13px] py-2.5 px-4 rounded-xl shadow-sm transition flex items-center justify-between" :class="isAnalyzing ? 'opacity-75 cursor-wait bg-slate-50' : ''" :disabled="isAnalyzing">
+                        <span x-text="isAnalyzing ? 'Analyse...' : 'Analyser ce brouillon'">Analyser ce brouillon</span>
+                        <i class="ph-bold ph-magnifying-glass text-[16px]" x-show="!isAnalyzing"></i>
+                        <i class="ph-bold ph-spinner animate-spin text-[16px]" x-show="isAnalyzing" style="display: none;"></i>
                     </button>
                 </div>
             </div>
@@ -268,6 +312,13 @@
             currentBlocks.forEach(block => {
                 const blockStartH = timeToHours(block.start_time);
                 const blockEndH = timeToHours(block.end_time);
+
+                if (schoolDayStart && block.start_time < schoolDayStart) {
+                    conflicts.push(`Le créneau ${block.start_time}-${block.end_time} commence avant l'heure de début des cours de l'établissement (${schoolDayStart}).`);
+                }
+                if (schoolDayEnd && block.end_time > schoolDayEnd) {
+                    conflicts.push(`Le créneau ${block.start_time}-${block.end_time} dépasse l'heure de fin des cours de l'établissement (${schoolDayEnd}).`);
+                }
 
                 otherTimetables.forEach(other => {
                     if (other.day_of_week === block.day) {
@@ -480,36 +531,18 @@
                     } else {
                         alert("Veuillez d'abord glisser une matière dans cette case.");
                     }
-                } else if (draggedItem.type === 'pause') {
-                    // Create a simple break block
-                    const blockHtml = `
-                        <div class="course-block absolute inset-1.5 bg-${draggedItem.color}-50 border border-${draggedItem.color}-200 rounded-lg p-2 z-10 flex items-center justify-center flex-col">
-                            <i class="ph-fill ph-coffee text-${draggedItem.color}-400 text-[20px] mb-1"></i>
-                            <div class="text-[11.5px] font-bold text-${draggedItem.color}-700 uppercase tracking-widest text-center">${draggedItem.name}</div>
-                            
-                            <!-- delete button -->
-                            <button class="delete-btn absolute top-1 right-1 text-${draggedItem.color}-400 hover:text-${draggedItem.color}-700 transition" title="Supprimer">
-                                <i class="ph-bold ph-x"></i>
-                            </button>
-                        </div>
-                    `;
-                    zone.innerHTML = blockHtml;
-                    zone.classList.add('relative');
-                    
-                    // Add delete listener
-                    const delBtn = zone.querySelector('.delete-btn');
-                    delBtn.addEventListener('click', (ev) => {
-                        ev.stopPropagation();
-                        zone.innerHTML = '';
-                    });
                 }
             });
         });
 
-        // Initialize existing timetables
-        const gridTimes = ['08:00', '09:00', '10:00', '10:30', '11:30', '12:30', '14:00', '15:00', '16:00', '17:00'];
+        // Initialize existing timetables — same row list the server rendered
+        // the dropzones from, so a block always finds its own exact row
+        // instead of snapping to (and overflowing past) an earlier one.
+        const gridTimes = @json($times);
         const existingTimetables = @json($existingTimetables ?? []);
         const otherTimetables = @json($otherTimetables ?? []);
+        const schoolDayStart = @json($school?->day_start_time ? \Carbon\Carbon::parse($school->day_start_time)->format('H:i') : null);
+        const schoolDayEnd = @json($school?->day_end_time ? \Carbon\Carbon::parse($school->day_end_time)->format('H:i') : null);
         
         const getDropzoneForTime = (day, timeStr) => {
             const timeH = timeToHours(timeStr);
@@ -654,12 +687,45 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('timetableEditor', () => ({
             activeTab: 'matieres', 
-            isGenerating: false, 
-            isSaving: false, 
-            isPublishing: false, 
-            isOptimizingBreaks: false, 
-            isBalancing: false,
-            
+            isGenerating: false,
+            isSaving: false,
+            isPublishing: false,
+            isAnalyzing: false,
+
+            analyzeTimetableDraft() {
+                const blocks = [];
+                document.querySelectorAll('.course-block[data-subject-id]').forEach(block => {
+                    blocks.push({
+                        teacher_id: block.getAttribute('data-teacher-id') || null,
+                        day: block.getAttribute('data-day'),
+                        start_time: block.querySelector('.start-time').value,
+                        end_time: block.querySelector('.end-time').value
+                    });
+                });
+
+                this.isAnalyzing = true;
+                const textEl = document.getElementById('timetableAiAnalysisText');
+
+                fetch('{{ route("school.academic.timetable.ai-analyze-draft") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ blocks: blocks })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    textEl.innerText = data.success ? data.analysis : (data.error || "Analyse IA indisponible pour le moment.");
+                })
+                .catch(() => {
+                    textEl.innerText = "Erreur de communication avec le serveur.";
+                })
+                .finally(() => {
+                    this.isAnalyzing = false;
+                });
+            },
+
             saveTimetable(publish = false) {
                 const classId = document.querySelector('select[name="class_id"]').value;
                 if (!classId) {
@@ -693,6 +759,8 @@
                     },
                     body: JSON.stringify({
                         class_id: classId,
+                        semester_id: '{{ $semesterId ?? '' }}',
+                        valid_from: '{{ $validFrom ?? '' }}',
                         status: publish ? 'published' : 'draft',
                         blocks: blocks
                     })
@@ -704,7 +772,7 @@
                     if (data.success) {
                         alert(publish ? 'Emploi du temps publié avec succès !' : 'Brouillon enregistré avec succès !');
                     } else {
-                        alert('Une erreur est survenue.');
+                        alert(data.message || 'Une erreur est survenue.');
                     }
                 })
                 .catch(err => {

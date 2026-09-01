@@ -9,9 +9,6 @@
             <h2 class="text-[32px] font-bold text-[#031C5B] tracking-tight">Tableau de Bord</h2>
             <p class="text-slate-600 text-[15px] font-medium mt-1">Bienvenue. Voici ce qui se passe dans votre bibliothèque aujourd'hui.</p>
         </div>
-        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700 uppercase tracking-wider shrink-0">
-            <i class="ph-fill ph-sparkle"></i> IA Active
-        </span>
     </div>
 
     @if(session('success'))
@@ -51,7 +48,7 @@
             </div>
             <h3 class="text-3xl font-bold text-slate-800">{{ $stats['overdue_returns'] }}</h3>
             @if($stats['overdue_returns'] > 0)
-                <p class="text-[12px] text-red-500 font-bold mt-1">Alerte IA : volume élevé attendu cette semaine</p>
+                <p class="text-[12px] text-red-500 font-bold mt-1">Nécessite un suivi</p>
             @else
                 <p class="text-[12px] text-slate-400 font-semibold mt-1">Aucun retard actuellement</p>
             @endif
@@ -111,7 +108,7 @@
         <!-- AI Overdue Alerts -->
         <div class="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col">
             <div class="p-5 border-b border-slate-100 flex items-center justify-between">
-                <h3 class="text-[15px] font-bold text-slate-900 flex items-center gap-2"><i class="ph-fill ph-robot text-purple-500"></i> Alertes IA Retards</h3>
+                <h3 class="text-[15px] font-bold text-slate-900 flex items-center gap-2"><i class="ph-fill ph-warning-circle text-purple-500"></i> Retours en Retard</h3>
                 <a href="{{ route('school.library.circulation') }}" class="text-[#031C5B] font-bold text-[12.5px] hover:underline">Tout voir</a>
             </div>
             <div class="divide-y divide-slate-50 flex-1">

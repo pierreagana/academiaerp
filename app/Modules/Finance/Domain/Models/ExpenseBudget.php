@@ -3,9 +3,11 @@
 namespace App\Modules\Finance\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class ExpenseBudget extends Model
 {
+    use BelongsToSchool;
     protected $fillable = [
         'school_id',
         'category',

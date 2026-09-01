@@ -17,32 +17,50 @@ use App\Modules\SchoolDashboard\Presentation\Controllers\CardController;
 use App\Modules\SchoolDashboard\Presentation\Controllers\PresenceController;
 use App\Modules\SchoolDashboard\Presentation\Controllers\BranchController;
 use App\Modules\SchoolDashboard\Presentation\Controllers\ExtensionController;
+use App\Modules\SchoolDashboard\Presentation\Controllers\BillingController;
+use App\Modules\SchoolDashboard\Presentation\Controllers\WalletController;
 use App\Modules\SchoolDashboard\Presentation\Controllers\ReportCardController;
 use App\Modules\SchoolDashboard\Presentation\Controllers\BulletinController;
 use App\Modules\SchoolDashboard\Presentation\Controllers\TeacherPortalController;
 use App\Modules\SchoolDashboard\Presentation\Controllers\HomeworkController;
+use App\Modules\SchoolDashboard\Presentation\Controllers\SchoolTrackController;
+use App\Modules\SchoolDashboard\Presentation\Controllers\ExamResultsController;
 
 use App\Modules\SchoolDashboard\Presentation\Controllers\AuthController;
+use App\Modules\SchoolDashboard\Presentation\Controllers\SupportController;
 
 Route::prefix('school')->name('school.')->group(function () {
     Route::middleware(['auth', 'school'])->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        Route::post('/ai-insights', [DashboardController::class, 'aiInsights'])->name('dashboard.ai-insights');
+        Route::get('/mes-etablissements', [\App\Modules\SchoolDashboard\Presentation\Controllers\FounderController::class, 'dashboard'])->name('founder.dashboard');
         Route::middleware('permission:establishment.manage')->group(function () {
             Route::get('/establishment', [DashboardController::class, 'establishment'])->name('establishment');
             Route::get('/establishment/edit', [DashboardController::class, 'editEstablishment'])->name('establishment.edit')->middleware('permission:establishment.manage,edit');
             Route::put('/establishment', [DashboardController::class, 'updateEstablishment'])->name('establishment.update')->middleware('permission:establishment.manage,update');
+            Route::get('/school-track', [SchoolTrackController::class, 'show'])->name('school-track');
+            Route::get('/school-track/edit', [SchoolTrackController::class, 'edit'])->name('school-track.edit');
+            Route::put('/school-track', [SchoolTrackController::class, 'update'])->name('school-track.update');
         });
         Route::get('/profile', [DashboardController::class, 'profile'])->name('profile');
         Route::put('/profile', [DashboardController::class, 'updateProfile'])->name('profile.update');
         Route::post('/branches/switch', [BranchController::class, 'switch'])->name('branches.switch');
+
+        Route::get('/support', [SupportController::class, 'index'])->name('support');
+        Route::post('/support', [SupportController::class, 'store'])->name('support.store');
+        Route::get('/support/{id}', [SupportController::class, 'show'])->name('support.show')->whereNumber('id');
+        Route::post('/support/{id}/reply', [SupportController::class, 'reply'])->name('support.reply')->whereNumber('id');
 
         // Espace Enseignant (self-service, identity-gated in the controller — teacher role only, not a delegable permission)
         Route::prefix('teacher')->name('teacher.')->group(function () {
             Route::get('/classes', [TeacherPortalController::class, 'classes'])->name('classes');
             Route::get('/classes/{classId}/planning', [TeacherPortalController::class, 'classSchedule'])->name('classes.planning')->whereNumber('classId');
             Route::post('/checkin', [TeacherPortalController::class, 'checkIn'])->name('checkin');
+            Route::post('/checkin-school', [TeacherPortalController::class, 'checkInSchool'])->name('checkin-school');
             Route::get('/pointages', [TeacherPortalController::class, 'attendanceHistory'])->name('attendance-history');
             Route::get('/pointages/export', [TeacherPortalController::class, 'exportAttendanceHistory'])->name('attendance-history.export');
+            Route::get('/diplomes', [TeacherPortalController::class, 'diplomas'])->name('diplomas');
+            Route::get('/diplomes/{id}/print', [TeacherPortalController::class, 'printDiploma'])->name('diplomas.print');
         });
 
         Route::middleware('permission:branches.manage')->group(function () {
@@ -67,6 +85,16 @@ Route::prefix('school')->name('school.')->group(function () {
         // Extensions (paid add-on modules — admin-only, checked in controller)
         Route::get('/extensions', [ExtensionController::class, 'index'])->name('extensions');
         Route::post('/extensions', [ExtensionController::class, 'store'])->name('extensions.store');
+        Route::get('/forfait', [ExtensionController::class, 'plans'])->name('plans');
+        Route::post('/forfait', [ExtensionController::class, 'requestPlan'])->name('plans.request');
+
+        // Billing (SaaS invoices) & Academia Pay wallet
+        Route::get('/facturation', [BillingController::class, 'index'])->name('billing');
+        Route::post('/facturation/{invoice}/payer/{method}', [BillingController::class, 'pay'])->name('billing.pay');
+        Route::get('/facturation/succes', [BillingController::class, 'success'])->name('billing.success');
+        Route::get('/facturation/annule', [BillingController::class, 'cancel'])->name('billing.cancel');
+        Route::get('/portefeuille', [WalletController::class, 'index'])->name('wallet');
+        Route::post('/portefeuille/recharger', [WalletController::class, 'recharge'])->name('wallet.recharge');
 
         // Languages
         Route::middleware('permission:academic.languages.manage')->group(function () {
@@ -131,13 +159,21 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::get('/academic/syllabuses/{syllabus}/lessons/{lesson}/edit', [\App\Modules\SchoolDashboard\Presentation\Controllers\LessonController::class, 'edit'])->name('academic.lessons.edit')->middleware('permission:academic.syllabuses.manage,edit');
             Route::put('/academic/syllabuses/{syllabus}/lessons/{lesson}', [\App\Modules\SchoolDashboard\Presentation\Controllers\LessonController::class, 'update'])->name('academic.lessons.update')->middleware('permission:academic.syllabuses.manage,update');
             Route::delete('/academic/syllabuses/{syllabus}/lessons/{lesson}', [\App\Modules\SchoolDashboard\Presentation\Controllers\LessonController::class, 'destroy'])->name('academic.lessons.destroy')->middleware('permission:academic.syllabuses.manage,delete');
+            Route::post('/academic/syllabuses/{syllabus}/lessons/{lesson}/sub-lesson-progress', [\App\Modules\SchoolDashboard\Presentation\Controllers\LessonController::class, 'updateSubLessonProgress'])->name('academic.lessons.sub-lesson-progress');
         });
 
         // Timetable
         Route::middleware('permission:academic.timetable.manage')->group(function () {
             Route::get('/academic/timetable', [AcademicController::class, 'timetable'])->name('academic.timetable');
+            Route::post('/academic/timetable/ai-optimizer-check', [AcademicController::class, 'aiOptimizerCheck'])->name('academic.timetable.ai-optimizer-check');
             Route::get('/academic/timetable/create', [AcademicController::class, 'createTimetable'])->name('academic.timetable.create')->middleware('permission:academic.timetable.manage,create');
             Route::post('/academic/timetable/store', [AcademicController::class, 'storeTimetable'])->name('academic.timetable.store')->middleware('permission:academic.timetable.manage,create');
+            Route::post('/academic/timetable/ai-analyze-draft', [AcademicController::class, 'aiAnalyzeTimetableDraft'])->name('academic.timetable.ai-analyze-draft')->middleware('permission:academic.timetable.manage,create');
+
+            Route::get('/academic/timetable/breaks', [AcademicController::class, 'timetableBreaks'])->name('academic.timetable.breaks');
+            Route::post('/academic/timetable/breaks', [AcademicController::class, 'storeTimetableBreak'])->name('academic.timetable.breaks.store')->middleware('permission:academic.timetable.manage,create');
+            Route::put('/academic/timetable/breaks/{id}', [AcademicController::class, 'updateTimetableBreak'])->name('academic.timetable.breaks.update')->middleware('permission:academic.timetable.manage,update');
+            Route::delete('/academic/timetable/breaks/{id}', [AcademicController::class, 'destroyTimetableBreak'])->name('academic.timetable.breaks.destroy')->middleware('permission:academic.timetable.manage,delete');
         });
 
         // Bulletins
@@ -184,6 +220,13 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::post('/{homework}/stop', [HomeworkController::class, 'stop'])->name('stop')->middleware('permission:academic.homework.manage,update')->whereNumber('homework');
             Route::post('/{homework}/attendance', [HomeworkController::class, 'storeAttendance'])->name('attendance')->middleware('permission:academic.homework.manage,update')->whereNumber('homework');
             Route::get('/{homework}/attendance/refresh', [HomeworkController::class, 'attendanceCounts'])->name('attendance.refresh')->whereNumber('homework');
+            Route::delete('/{homework}', [HomeworkController::class, 'destroy'])->name('destroy')->middleware('permission:academic.homework.manage,delete')->whereNumber('homework');
+        });
+
+        Route::middleware('permission:academic.exam-results.manage')->prefix('exam-results')->name('exam-results.')->group(function () {
+            Route::get('/', [ExamResultsController::class, 'index'])->name('index');
+            Route::get('/create', [ExamResultsController::class, 'create'])->name('create')->middleware('permission:academic.exam-results.manage,create');
+            Route::post('/', [ExamResultsController::class, 'store'])->name('store')->middleware('permission:academic.exam-results.manage,create');
         });
 
         // Students
@@ -198,6 +241,12 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::post('/academic/students/transfer', [AcademicController::class, 'storeTransfer'])->name('academic.students.transfer.store')->middleware('permission:academic.students.manage,update');
             Route::get('/academic/students/promote', [AcademicController::class, 'promoteStudents'])->name('academic.students.promote')->middleware('permission:academic.students.manage,update');
             Route::post('/academic/students/promote', [AcademicController::class, 'storePromotion'])->name('academic.students.promote.store')->middleware('permission:academic.students.manage,update');
+            Route::get('/academic/students/{id}', [AcademicController::class, 'showStudent'])->name('academic.students.show');
+            Route::post('/academic/students/{id}/documents', [AcademicController::class, 'storeStudentDocument'])->name('academic.students.documents.store')->middleware('permission:academic.students.manage,create');
+            Route::put('/academic/students/documents/{id}', [AcademicController::class, 'updateStudentDocumentStatus'])->name('academic.students.documents.status')->middleware('permission:academic.students.manage,update');
+            Route::delete('/academic/students/documents/{id}', [AcademicController::class, 'destroyStudentDocument'])->name('academic.students.documents.destroy')->middleware('permission:academic.students.manage,delete');
+            Route::post('/academic/students/{id}/disciplinary-records', [AcademicController::class, 'storeDisciplinaryRecord'])->name('academic.students.disciplinary.store')->middleware('permission:academic.students.manage,create');
+            Route::delete('/academic/students/disciplinary-records/{id}', [AcademicController::class, 'destroyDisciplinaryRecord'])->name('academic.students.disciplinary.destroy')->middleware('permission:academic.students.manage,delete');
         });
 
         // Parents / Guardians
@@ -216,6 +265,7 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::get('/academic/teachers', [AcademicController::class, 'teachers'])->name('academic.teachers');
             Route::get('/academic/teachers/create', [AcademicController::class, 'createTeacher'])->name('academic.teachers.create')->middleware('permission:academic.teachers.manage,create');
             Route::post('/academic/teachers', [AcademicController::class, 'storeTeacher'])->name('academic.teachers.store')->middleware('permission:academic.teachers.manage,create');
+            Route::post('/academic/teachers/ai-suggest-hours', [AcademicController::class, 'aiSuggestTeacherHours'])->name('academic.teachers.ai-suggest-hours')->middleware('permission:academic.teachers.manage,create');
             Route::get('/academic/teachers/{id}', [AcademicController::class, 'showTeacher'])->name('academic.teachers.show');
             Route::get('/academic/teachers/{id}/edit', [AcademicController::class, 'editTeacher'])->name('academic.teachers.edit')->middleware('permission:academic.teachers.manage,edit');
             Route::put('/academic/teachers/{id}', [AcademicController::class, 'updateTeacher'])->name('academic.teachers.update')->middleware('permission:academic.teachers.manage,update');
@@ -232,6 +282,20 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::delete('/academic/personnel/{id}', [AcademicController::class, 'destroyPersonnel'])->name('academic.personnel.destroy')->middleware('permission:academic.personnel.manage,delete');
         });
 
+        // Récompenses & Diplômes
+        Route::middleware('permission:academic.awards.manage')->prefix('academic/awards')->name('academic.awards.')->group(function () {
+            Route::get('/', [\App\Modules\SchoolDashboard\Presentation\Controllers\AwardController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Modules\SchoolDashboard\Presentation\Controllers\AwardController::class, 'create'])->name('create')->middleware('permission:academic.awards.manage,create');
+            Route::post('/', [\App\Modules\SchoolDashboard\Presentation\Controllers\AwardController::class, 'store'])->name('store')->middleware('permission:academic.awards.manage,create');
+            Route::delete('/{id}', [\App\Modules\SchoolDashboard\Presentation\Controllers\AwardController::class, 'destroy'])->name('destroy')->middleware('permission:academic.awards.manage,delete');
+            Route::get('/template', [\App\Modules\SchoolDashboard\Presentation\Controllers\DiplomaTemplateController::class, 'edit'])->name('template.edit');
+            Route::post('/template', [\App\Modules\SchoolDashboard\Presentation\Controllers\DiplomaTemplateController::class, 'update'])->name('template.update')->middleware('permission:academic.awards.manage,update');
+            Route::get('/models', [\App\Modules\SchoolDashboard\Presentation\Controllers\AwardTypeController::class, 'index'])->name('models.index');
+            Route::post('/models', [\App\Modules\SchoolDashboard\Presentation\Controllers\AwardTypeController::class, 'store'])->name('models.store')->middleware('permission:academic.awards.manage,create');
+            Route::delete('/models/{id}', [\App\Modules\SchoolDashboard\Presentation\Controllers\AwardTypeController::class, 'destroy'])->name('models.destroy')->middleware('permission:academic.awards.manage,delete');
+            Route::get('/{id}/print', [\App\Modules\SchoolDashboard\Presentation\Controllers\DiplomaTemplateController::class, 'print'])->name('print');
+        });
+
         // Présence & Contrôle d'Accès
         Route::middleware('permission:academic.presence.manage')->prefix('academic/presence')->name('academic.presence.')->group(function () {
             Route::get('/classe', [PresenceController::class, 'attendanceDashboard'])->name('attendance');
@@ -242,6 +306,10 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::post('/acces/check-in', [PresenceController::class, 'storeCheckIn'])->name('access.checkin')->middleware('permission:academic.presence.manage,create');
             Route::post('/acces/portails', [PresenceController::class, 'storeAccessPoint'])->name('access.points.store')->middleware('permission:academic.presence.manage,create');
             Route::delete('/acces/portails/{id}', [PresenceController::class, 'destroyAccessPoint'])->name('access.points.destroy')->middleware('permission:academic.presence.manage,delete');
+            Route::get('/appareils', [PresenceController::class, 'accessDevicesDashboard'])->name('access.devices');
+            Route::post('/appareils', [PresenceController::class, 'storeAccessDevice'])->name('access.devices.store')->middleware('permission:academic.presence.manage,create');
+            Route::post('/appareils/{id}/toggle', [PresenceController::class, 'toggleAccessDevice'])->name('access.devices.toggle')->middleware('permission:academic.presence.manage,update');
+            Route::delete('/appareils/{id}', [PresenceController::class, 'destroyAccessDevice'])->name('access.devices.destroy')->middleware('permission:academic.presence.manage,delete');
         });
 
         // Frais Scolaires
@@ -286,6 +354,7 @@ Route::prefix('school')->name('school.')->group(function () {
         // Dépenses
         Route::middleware('permission:finance.expenses.manage')->prefix('finance/expenses')->name('finance.expenses.')->group(function () {
             Route::get('/', [ExpenseController::class, 'overview'])->name('overview');
+            Route::post('/ai-analysis', [ExpenseController::class, 'aiExpenseAnalysis'])->name('ai-analysis');
             Route::get('/transactions', [ExpenseController::class, 'transactions'])->name('transactions');
             Route::get('/transactions/export/excel', [ExpenseController::class, 'exportExcel'])->name('transactions.export.excel');
             Route::get('/transactions/export/pdf', [ExpenseController::class, 'exportPdf'])->name('transactions.export.pdf');
@@ -306,6 +375,7 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::get('/', [EventController::class, 'dashboard'])->name('dashboard');
             Route::get('/calendar', [EventController::class, 'calendar'])->name('calendar');
             Route::get('/create', [EventController::class, 'create'])->name('create')->middleware('permission:communication.events.manage,create');
+            Route::get('/ai-logistics-suggestion', [EventController::class, 'aiLogisticsSuggestion'])->name('ai-logistics-suggestion');
             Route::post('/', [EventController::class, 'store'])->name('store')->middleware('permission:communication.events.manage,create');
             Route::get('/{id}/edit', [EventController::class, 'edit'])->name('edit')->middleware('permission:communication.events.manage,edit');
             Route::put('/{id}', [EventController::class, 'update'])->name('update')->middleware('permission:communication.events.manage,update');
@@ -342,8 +412,10 @@ Route::prefix('school')->name('school.')->group(function () {
         // Cantine
         Route::middleware('permission:canteen.manage')->prefix('canteen')->name('canteen.')->group(function () {
             Route::get('/', [CanteenController::class, 'dashboard'])->name('dashboard');
+            Route::post('/ai-insight', [CanteenController::class, 'aiCanteenInsight'])->name('ai-insight');
 
             Route::get('/planning', [CanteenController::class, 'planning'])->name('planning');
+            Route::post('/planning/ai-advice', [CanteenController::class, 'aiPlanningAdvice'])->name('planning.ai-advice');
             Route::post('/planning/items', [CanteenController::class, 'storeMenuItem'])->name('planning.items.store')->middleware('permission:canteen.manage,create');
             Route::delete('/planning/items/{id}', [CanteenController::class, 'destroyMenuItem'])->name('planning.items.destroy')->middleware('permission:canteen.manage,delete');
             Route::post('/planning/publish', [CanteenController::class, 'publishWeek'])->name('planning.publish')->middleware('permission:canteen.manage,update');
@@ -359,9 +431,19 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::post('/inventory/adjust', [CanteenController::class, 'adjustStock'])->name('inventory.adjust')->middleware('permission:canteen.manage,update');
 
             Route::get('/reservations', [CanteenController::class, 'reservations'])->name('reservations');
+            Route::post('/reservations/ai-forecast', [CanteenController::class, 'aiReservationForecast'])->name('reservations.ai-forecast');
             Route::get('/reservations/export', [CanteenController::class, 'exportRoster'])->name('reservations.export');
             Route::post('/reservations/meals', [CanteenController::class, 'recordMeal'])->name('reservations.meals.store')->middleware('permission:canteen.manage,create');
             Route::post('/reservations/credit', [CanteenController::class, 'creditAccount'])->name('reservations.credit')->middleware('permission:canteen.manage,update');
+
+            Route::get('/requests', [CanteenController::class, 'enrollmentRequests'])->name('requests');
+            Route::post('/requests/direct-enroll', [CanteenController::class, 'directEnroll'])->name('requests.direct-enroll')->middleware('permission:canteen.manage,create');
+            Route::post('/requests/{id}/approve', [CanteenController::class, 'approveEnrollment'])->name('requests.approve')->middleware('permission:canteen.manage,update');
+            Route::post('/requests/{id}/reject', [CanteenController::class, 'rejectEnrollment'])->name('requests.reject')->middleware('permission:canteen.manage,update');
+            Route::post('/requests/{id}/withdraw', [CanteenController::class, 'withdrawEnrollment'])->name('requests.withdraw')->middleware('permission:canteen.manage,delete');
+
+            Route::get('/scanner', [CanteenController::class, 'scanner'])->name('scanner');
+            Route::post('/scanner', [CanteenController::class, 'scan'])->name('scanner.scan')->middleware('permission:canteen.manage,create');
         });
 
         // Infirmerie
@@ -399,14 +481,25 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::delete('/stops/{id}/students/{studentId}', [TransportController::class, 'unassignStudent'])->name('stops.students.destroy')->middleware('permission:transport.manage,delete');
 
             Route::get('/trips', [TransportController::class, 'trips'])->name('trips');
+            Route::post('/trips/ai-analysis', [TransportController::class, 'aiTripAnalysis'])->name('trips.ai-analysis');
             Route::post('/trips', [TransportController::class, 'storeTrip'])->name('trips.store')->middleware('permission:transport.manage,create');
             Route::get('/trips/export', [TransportController::class, 'exportTrips'])->name('trips.export');
 
             Route::get('/map', [TransportController::class, 'map'])->name('map');
-            Route::post('/buses/{id}/position', [TransportController::class, 'updateBusPosition'])->name('buses.position.update')->middleware('permission:transport.manage,update');
+            Route::get('/buses/{id}/positions', [TransportController::class, 'busPositionHistory'])->name('buses.positions');
 
             Route::get('/drivers', [TransportController::class, 'drivers'])->name('drivers');
             Route::post('/drivers', [TransportController::class, 'storeDriver'])->name('drivers.store')->middleware('permission:transport.manage,create');
+
+            Route::get('/requests', [TransportController::class, 'enrollmentRequests'])->name('requests');
+            Route::post('/requests/{id}/approve', [TransportController::class, 'approveEnrollment'])->name('requests.approve')->middleware('permission:transport.manage,update');
+            Route::post('/requests/{id}/reject', [TransportController::class, 'rejectEnrollment'])->name('requests.reject')->middleware('permission:transport.manage,update');
+            Route::post('/requests/{id}/withdraw', [TransportController::class, 'withdrawEnrollment'])->name('requests.withdraw')->middleware('permission:transport.manage,delete');
+
+            Route::get('/scanner', [TransportController::class, 'scanner'])->name('scanner');
+            Route::post('/scanner', [TransportController::class, 'scan'])->name('scanner.scan')->middleware('permission:transport.manage,create');
+
+            Route::get('/history', [TransportController::class, 'boardingHistory'])->name('history');
         });
 
         // RH

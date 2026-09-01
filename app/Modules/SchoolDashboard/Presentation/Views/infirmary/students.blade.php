@@ -53,13 +53,13 @@
                                 <td class="px-5 py-4 text-[13px] font-semibold text-slate-600">{{ $student->academicClass->name ?? '-' }}</td>
                                 <td class="px-5 py-4">
                                     <div class="flex flex-wrap gap-1">
-                                        @if($student->allergies)
+                                        @if($student->allergies || $student->has_parent_reported_allergy)
                                             <span class="px-2 py-1 rounded-full text-[10.5px] font-bold bg-red-100 text-red-700">Allergie</span>
                                         @endif
                                         @if($student->medical_conditions)
                                             <span class="px-2 py-1 rounded-full text-[10.5px] font-bold bg-purple-100 text-purple-700">Condition Médicale</span>
                                         @endif
-                                        @if(!$student->allergies && !$student->medical_conditions)
+                                        @if(!$student->allergies && !$student->has_parent_reported_allergy && !$student->medical_conditions)
                                             <span class="px-2 py-1 rounded-full text-[10.5px] font-bold bg-slate-100 text-slate-500">Aucune Alerte</span>
                                         @endif
                                     </div>
@@ -103,20 +103,20 @@
                     </div>
                 </div>
 
-                @if($selectedStudent->allergies || $selectedStudent->medical_conditions)
+                @if($selectedStudent->allergies || $selectedStudent->medical_conditions || $parentAllergies->isNotEmpty())
                 <div class="bg-red-50/60 border border-red-100 rounded-xl p-4 mb-5">
                     <p class="text-[11px] font-extrabold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1.5"><i class="ph-fill ph-warning"></i> Alertes & Antécédents</p>
                     @if($selectedStudent->allergies)
                         <div class="flex items-start gap-2 mb-2">
                             <i class="ph-bold ph-first-aid text-red-500 mt-0.5"></i>
                             <div>
-                                <p class="text-[12.5px] font-bold text-slate-800">Allergies</p>
+                                <p class="text-[12.5px] font-bold text-slate-800">Allergies (fiche d'inscription)</p>
                                 <p class="text-[12px] text-slate-600">{{ $selectedStudent->allergies }}</p>
                             </div>
                         </div>
                     @endif
                     @if($selectedStudent->medical_conditions)
-                        <div class="flex items-start gap-2">
+                        <div class="flex items-start gap-2 mb-2">
                             <i class="ph-bold ph-heartbeat text-red-500 mt-0.5"></i>
                             <div>
                                 <p class="text-[12.5px] font-bold text-slate-800">Conditions Médicales</p>
@@ -124,10 +124,57 @@
                             </div>
                         </div>
                     @endif
+                    @foreach($parentAllergies as $allergy)
+                        <div class="flex items-start gap-2 {{ !$loop->last ? 'mb-2' : '' }}">
+                            <i class="ph-bold ph-first-aid text-red-500 mt-0.5"></i>
+                            <div>
+                                <p class="text-[12.5px] font-bold text-slate-800">
+                                    {{ $allergy->name }}
+                                    @if($allergy->severity)
+                                        <span class="text-red-600">— {{ $allergy->severity }}</span>
+                                    @endif
+                                    <span class="ml-1 text-[9.5px] font-bold uppercase text-red-400">Signalé par le parent</span>
+                                </p>
+                                @if($allergy->notes)
+                                    <p class="text-[12px] text-slate-600">{{ $allergy->notes }}</p>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
                 @else
                 <div class="bg-slate-50 rounded-xl p-4 mb-5 text-center">
                     <p class="text-[12.5px] text-slate-400">Aucune alerte médicale enregistrée.</p>
+                </div>
+                @endif
+
+                @if($parentVaccines->isNotEmpty() || $parentPrescriptions->isNotEmpty())
+                <div class="bg-blue-50/60 border border-blue-100 rounded-xl p-4 mb-5">
+                    <p class="text-[11px] font-extrabold text-[#031C5B] uppercase tracking-wider mb-2 flex items-center gap-1.5"><i class="ph-fill ph-user-circle"></i> Signalé par les parents</p>
+
+                    @if($parentVaccines->isNotEmpty())
+                        <p class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider mt-2 mb-1.5">Carnet de vaccination</p>
+                        <div class="space-y-1.5 mb-2">
+                            @foreach($parentVaccines as $vaccine)
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[12.5px] font-bold text-slate-800 flex items-center gap-1.5"><i class="ph-bold ph-syringe text-emerald-600"></i> {{ $vaccine->name }}</span>
+                                    <span class="text-[11px] text-slate-500">{{ $vaccine->administered_at->format('d/m/Y') }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @if($parentPrescriptions->isNotEmpty())
+                        <p class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider mt-2 mb-1.5">Ordonnances / Documents</p>
+                        <div class="space-y-1.5">
+                            @foreach($parentPrescriptions as $doc)
+                                <a href="{{ asset('storage/' . $doc->file_path) }}" target="_blank" class="flex items-center justify-between hover:bg-blue-100/40 rounded-lg px-1 -mx-1 py-0.5 transition">
+                                    <span class="text-[12.5px] font-bold text-[#031C5B] flex items-center gap-1.5"><i class="ph-bold ph-file-text"></i> {{ $doc->name }}</span>
+                                    <span class="text-[11px] text-slate-500">{{ $doc->created_at->format('d/m/Y') }}</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
                 @endif
 

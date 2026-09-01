@@ -63,6 +63,13 @@
         $isSubjectPublished = $subjectPublicationStatus === \App\Modules\Bulletin\Domain\Models\BulletinSubjectPublication::STATUS_PUBLISHED;
     @endphp
 
+    @if($readOnly)
+    <div class="p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-[13.5px] font-medium flex items-center gap-2.5">
+        <i class="ph-bold ph-eye text-lg shrink-0"></i>
+        <span>Lecture seule — vous voyez cette matière en tant que professeur principal de la classe, mais seul l'enseignant qui l'assure peut saisir, modifier ou publier ses notes.</span>
+    </div>
+    @endif
+
     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center justify-between gap-4">
         <div class="flex items-center gap-2.5">
             @if($isSubjectPublished)
@@ -77,6 +84,7 @@
                 <span class="text-[12.5px] text-slate-500">Cette matière reste vide sur le bulletin tant qu'elle n'est pas publiée.</span>
             @endif
         </div>
+        @unless($readOnly)
         <form action="{{ route($isSubjectPublished ? 'school.academic.bulletins.grades.unpublish' : 'school.academic.bulletins.grades.publish') }}" method="POST">
             @csrf
             <input type="hidden" name="class_id" value="{{ $selectedClass->id }}">
@@ -87,6 +95,7 @@
                 <button type="submit" class="px-4 py-2 bg-[#031C5B] text-white font-bold text-[12.5px] rounded-lg hover:bg-[#031C5B]/90 transition">Publier mes notes pour cette matière</button>
             @endif
         </form>
+        @endunless
     </div>
 
     <form action="{{ route('school.academic.bulletins.grades.store') }}" method="POST">
@@ -144,16 +153,20 @@
                                                 @foreach($existingForStudent->get($col->key, collect()) as $entry)
                                                     <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 w-fit">
                                                         <span class="text-[12px] font-bold text-slate-700">{{ number_format($entry->score, 2) }}</span>
+                                                        @unless($readOnly)
                                                         <button type="submit" form="delete-grade-{{ $entry->id }}" class="text-slate-400 hover:text-red-500 transition" title="Supprimer cette note">
                                                             <i class="ph-bold ph-x text-[10px]"></i>
                                                         </button>
+                                                        @endunless
                                                     </div>
                                                 @endforeach
                                             </div>
+                                            @unless($readOnly)
                                             <input type="number" name="entries[{{ $student->id }}][{{ $col->type->id }}][score]" step="0.25" min="0" max="20"
                                                 x-model="newScores['{{ $col->key }}']"
                                                 placeholder="+ note"
                                                 class="w-20 bg-slate-50 border border-slate-200 text-[13px] font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-[#031C5B]">
+                                            @endunless
                                         @endif
                                     </td>
                                 @endforeach
@@ -162,7 +175,7 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-2" x-data="{ remark: {{ json_encode($existingRemark) }} }">
-                                        @if($primaryEditableTypeId)
+                                        @if($primaryEditableTypeId && !$readOnly)
                                         <input type="text" name="entries[{{ $student->id }}][{{ $primaryEditableTypeId }}][remark]" x-model="remark"
                                             class="flex-1 bg-slate-50 border border-slate-200 text-[12.5px] rounded-lg px-2.5 py-1.5 outline-none focus:border-[#031C5B]" placeholder="Appréciation...">
                                         <button type="button" title="Suggérer une appréciation selon le barème"
@@ -180,12 +193,14 @@
                     </tbody>
                 </table>
             </div>
+            @unless($readOnly)
             <div class="px-6 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                 <p class="text-[11.5px] text-slate-400">Chaque nouvelle note saisie s'ajoute aux précédentes (ne remplace rien) — revenez sur cette page pour en ajouter une autre.</p>
                 <button type="submit" class="px-6 py-3 bg-[#031C5B] text-white font-bold text-[14px] rounded-xl hover:bg-[#031C5B]/90 transition-all shadow-sm flex items-center gap-2 shrink-0">
                     <i class="ph-bold ph-check"></i> Enregistrer les Notes
                 </button>
             </div>
+            @endunless
         </div>
     </form>
 

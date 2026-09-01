@@ -211,34 +211,12 @@
                             <h2 class="text-xl font-bold text-slate-900">Assistant d'Aperçus IA</h2>
                             <span class="px-2 py-0.5 bg-purple-600 text-white text-[9px] font-bold uppercase tracking-wider rounded-md">En Direct</span>
                         </div>
-                        <p class="text-slate-600 text-[14px]">Analyse des données opérationnelles en temps réel pour Nairobi West International School.</p>
+                        <p class="text-slate-600 text-[14px]">Analyse des données opérationnelles réelles pour {{ $school->name }}.</p>
                     </div>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
-                    <!-- AI Insight 1 -->
-                    <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
-                        <h4 class="text-[10px] font-bold text-red-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <i class="ph ph-trend-down text-sm"></i> Alerte Présence
-                        </h4>
-                        <p class="text-[13px] text-slate-700 leading-relaxed">La présence est en baisse de <span class="font-bold text-red-600">5%</span> en 10ème année par rapport au mois dernier. Envisagez de revoir le nouvel emploi du temps du matin.</p>
-                    </div>
-                    
-                    <!-- AI Insight 2 -->
-                    <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
-                        <h4 class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <i class="ph ph-lightning text-sm"></i> Optimisation des Ressources
-                        </h4>
-                        <p class="text-[13px] text-slate-700 leading-relaxed">Le Labo de Science 2 est sous-utilisé les mardis. L'IA suggère d'y déplacer les sessions de physique de 8ème année.</p>
-                    </div>
-                    
-                    <!-- AI Insight 3 -->
-                    <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
-                        <h4 class="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <i class="ph ph-money text-sm"></i> Prédiction des Frais
-                        </h4>
-                        <p class="text-[13px] text-slate-700 leading-relaxed">Prévision d'un taux de recouvrement de 95% d'ici la fin du mois selon les modèles de paiement actuels. Forte liquidité attendue.</p>
-                    </div>
+
+                <div class="relative z-10" id="dashboardAiInsightsContainer">
+                    <p class="text-[13px] text-slate-500 italic">Analyse des données de l'établissement en cours...</p>
                 </div>
             </div>
             
@@ -289,4 +267,27 @@
     </div>
 
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('{{ route("school.dashboard.ai-insights") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const el = document.getElementById('dashboardAiInsightsContainer');
+            const text = data.success ? data.insights : (data.error || "Analyse IA indisponible pour le moment.");
+            el.innerHTML = '<p class="text-[13px] text-slate-700 leading-relaxed bg-white rounded-xl p-4 border border-slate-100 shadow-sm"></p>';
+            el.querySelector('p').innerText = text;
+        })
+        .catch(() => {
+            document.getElementById('dashboardAiInsightsContainer').innerHTML =
+                '<p class="text-[13px] text-slate-500">Erreur de communication avec le serveur.</p>';
+        });
+    });
+</script>
 @endsection

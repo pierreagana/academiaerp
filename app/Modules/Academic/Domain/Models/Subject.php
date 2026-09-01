@@ -4,10 +4,11 @@ namespace App\Modules\Academic\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Subject extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToSchool;
     
     protected $fillable = ['name', 'code', 'type', 'color', 'coefficient', 'language_id', 'school_id'];
 

@@ -31,7 +31,6 @@
         <div class="bg-white rounded-2xl border border-slate-100 shadow-sm">
             <div class="p-5 border-b border-slate-100 flex items-center justify-between">
                 <h3 class="text-[16px] font-bold text-[#031C5B] flex items-center gap-2"><i class="ph-bold ph-plus-circle"></i> Nouvel Emprunt</h3>
-                <span class="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-full text-[10.5px] font-bold uppercase tracking-wider">Assisté par IA</span>
             </div>
             <form action="{{ route('school.library.circulation.loans.store') }}" method="POST" class="p-5 space-y-4">
                 @csrf
@@ -115,6 +114,9 @@
                                         <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-700">
                                             <i class="ph-fill ph-warning"></i> En retard de {{ $daysOverdue }} j.
                                         </span>
+                                        @if($settings->enforce_fees && $settings->late_fee_per_day)
+                                            <p class="text-[11px] text-red-500 font-semibold mt-1">{{ number_format($daysOverdue * $settings->late_fee_per_day, 0, ',', ' ') }} FCFA de pénalité estimée</p>
+                                        @endif
                                     @elseif($loan->due_at->isToday())
                                         <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700">
                                             <i class="ph-fill ph-calendar-check"></i> Aujourd'hui

@@ -18,7 +18,7 @@
             </div>
 
             <!-- Stats Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 
                 <!-- Stat 1 -->
                 <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
@@ -68,6 +68,32 @@
                     <div class="mt-4">
                         <h3 class="text-3xl font-bold text-slate-900">{{ $stats->totalRevenues }}</h3>
                         <p class="text-sm text-slate-500 font-medium">{{ __('total_mrr') }}</p>
+                    </div>
+                </div>
+
+                <!-- Stat: Total Students -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div class="flex justify-between items-start">
+                        <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                            <i class="ph ph-student text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-3xl font-bold text-slate-900">{{ number_format($totalStudents, 0, ',', ' ') }}</h3>
+                        <p class="text-sm text-slate-500 font-medium">{{ __('total_students') }}</p>
+                    </div>
+                </div>
+
+                <!-- Stat: Registered Parents -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div class="flex justify-between items-start">
+                        <div class="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center text-sky-600">
+                            <i class="ph ph-users-three text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-3xl font-bold text-slate-900">{{ number_format($totalParents, 0, ',', ' ') }}</h3>
+                        <p class="text-sm text-slate-500 font-medium">{{ __('total_parents') }}</p>
                     </div>
                 </div>
 

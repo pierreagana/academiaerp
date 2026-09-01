@@ -33,8 +33,11 @@
             </div>
             <div>
                 <label class="block text-[12.5px] font-bold text-slate-600 mb-1.5">Numéro de téléphone</label>
-                <input type="text" name="phone" value="{{ old('phone') }}" required placeholder="Ex: 0102030405"
-                    class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-[14px] rounded-xl px-4 py-3 outline-none focus:border-[#031C5B]">
+                @include('SchoolDashboard::components.phone-input', [
+                    'required' => true,
+                    'selectClass' => 'w-[110px] bg-slate-50 border border-slate-200 text-slate-900 text-[13px] rounded-xl px-2 py-3 outline-none focus:border-[#031C5B] cursor-pointer',
+                    'inputClass' => 'flex-1 bg-slate-50 border border-slate-200 text-slate-900 text-[14px] rounded-xl px-4 py-3 outline-none focus:border-[#031C5B]',
+                ])
                 <p class="text-[11.5px] text-slate-400 mt-1">Doit correspondre au numéro déjà déclaré à l'établissement de votre enfant.</p>
             </div>
             <div>

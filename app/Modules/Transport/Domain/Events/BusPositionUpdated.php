@@ -19,14 +19,13 @@ class BusPositionUpdated implements ShouldBroadcastNow
 
     public function __construct(
         public Bus $bus,
-        public int $studentId,
     ) {
     }
 
-    /** One private channel per (bus, student) pair, since a parent should only ever see their own child's bus. */
+    /** One private channel per bus — every parent riding it and the school dashboard share the same channel; routes/channels.php authorizes each principal kind separately. */
     public function broadcastOn(): array
     {
-        return [new PrivateChannel("transport.student.{$this->studentId}")];
+        return [new PrivateChannel("transport.bus.{$this->bus->id}")];
     }
 
     public function broadcastAs(): string

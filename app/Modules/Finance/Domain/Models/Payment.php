@@ -4,9 +4,11 @@ namespace App\Modules\Finance\Domain\Models;
 
 use App\Modules\Academic\Domain\Models\Student;
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Payment extends Model
 {
+    use BelongsToSchool;
     protected $fillable = [
         'school_id',
         'student_id',

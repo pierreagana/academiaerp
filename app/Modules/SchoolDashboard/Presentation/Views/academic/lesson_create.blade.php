@@ -32,11 +32,38 @@
     </div>
     @endif
 
-    <form action="{{ route('school.academic.lessons.store', $syllabus->id) }}" method="POST" enctype="multipart/form-data" 
+    <form action="{{ route('school.academic.lessons.store', $syllabus->id) }}" method="POST" enctype="multipart/form-data"
           x-data="{ lessons: [{ id: Date.now(), order: 1, lesson_titles: [''] }] }">
         @csrf
-        
+
         <div class="space-y-6">
+            @if($otherClassSyllabuses->isNotEmpty())
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" x-data="{ allChecked: false }">
+                <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-[15px] font-bold text-slate-800 flex items-center gap-2">
+                            <i class="ph-fill ph-copy text-primary-dynamic"></i>
+                            Dupliquer aussi pour d'autres classes
+                        </h2>
+                        <p class="text-[12px] text-slate-500 mt-0.5">Mêmes chapitres, même matière ({{ $syllabus->subject->name }}), même semestre ({{ $syllabus->semester->name }}) — pour les classes cochées ci-dessous.</p>
+                    </div>
+                    <button type="button"
+                        @click="allChecked = !allChecked; $el.closest('div[x-data]').querySelectorAll('input[name=\'target_syllabus_ids[]\']').forEach(cb => cb.checked = allChecked)"
+                        class="text-[12px] font-bold text-[#2F5F76] hover:underline shrink-0">
+                        <span x-text="allChecked ? 'Tout décocher' : 'Tout sélectionner'"></span>
+                    </button>
+                </div>
+                <div class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    @foreach($otherClassSyllabuses as $otherSyllabus)
+                    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-[#2F5F76] hover:bg-slate-50 transition cursor-pointer">
+                        <input type="checkbox" name="target_syllabus_ids[]" value="{{ $otherSyllabus->id }}" class="w-4 h-4 text-[#2F5F76] bg-slate-100 border-slate-300 rounded focus:ring-[#2F5F76]">
+                        <span class="text-[13px] font-bold text-slate-700">{{ $otherSyllabus->academicClass->name ?? '-' }}</span>
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             <!-- Dynamic Chapters loop -->
             <template x-for="(lesson, index) in lessons" :key="lesson.id">
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">

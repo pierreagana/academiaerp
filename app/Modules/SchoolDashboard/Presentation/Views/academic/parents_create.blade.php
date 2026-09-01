@@ -137,8 +137,15 @@
 
                         <!-- Numéro de Téléphone -->
                         <div>
-                            <label for="phone" class="block text-sm font-bold text-slate-700 mb-2">Numéro de Téléphone <span class="text-red-500">*</span></label>
-                            <input type="text" id="phone" name="phone" required value="{{ old('phone', $guardian->phone ?? '') }}" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#031C5B] focus:border-[#031C5B] transition placeholder:text-slate-400" placeholder="Ex: 77 123 45 67">
+                            <label for="phone_number" class="block text-sm font-bold text-slate-700 mb-2">Numéro de Téléphone <span class="text-red-500">*</span></label>
+                            @php [$guardianPhoneCode, $guardianPhoneNumber] = \App\Modules\SuperAdmin\Domain\Models\Country::splitPhone($guardian->phone ?? null); @endphp
+                            @include('SchoolDashboard::components.phone-input', [
+                                'selectedCode' => $guardianPhoneCode,
+                                'selectedNumber' => $guardianPhoneNumber,
+                                'required' => true,
+                                'selectClass' => 'w-[110px] px-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#031C5B] focus:border-[#031C5B] transition cursor-pointer',
+                                'inputClass' => 'flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#031C5B] focus:border-[#031C5B] transition placeholder:text-slate-400',
+                            ])
                         </div>
 
                         <!-- Adresse Email -->

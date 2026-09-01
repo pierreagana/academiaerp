@@ -11,7 +11,7 @@ class ParentAccount extends Authenticatable
 {
     use HasApiTokens, Notifiable;
 
-    protected $fillable = ['name', 'phone', 'email', 'password'];
+    protected $fillable = ['name', 'phone', 'email', 'password', 'fcm_token'];
 
     protected $hidden = ['password', 'remember_token'];
 

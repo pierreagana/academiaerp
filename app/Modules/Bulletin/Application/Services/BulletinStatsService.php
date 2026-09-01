@@ -112,6 +112,8 @@ class BulletinStatsService
                     if ($subjectId) {
                         $q->where('subject_id', $subjectId);
                     }
+                    // Only assignments explicitly linked to THIS evaluation type count towards the bulletin
+                    $q->where('evaluation_type_id', $type->id);
                 })
                 ->with(['student', 'assignment.subject', 'assignment.teacher'])
                 ->get();
@@ -157,6 +159,8 @@ class BulletinStatsService
                 ->where('semester_id', $semesterId)
                 ->where('type', $type->linked_homework_type)
                 ->when($subjectId, fn ($q) => $q->where('subject_id', $subjectId))
+                // Only show columns for assignments that are explicitly linked to this evaluation type
+                ->where('evaluation_type_id', $type->id)
                 ->orderBy('scheduled_at')
                 ->get();
 

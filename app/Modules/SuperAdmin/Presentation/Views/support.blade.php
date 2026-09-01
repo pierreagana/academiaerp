@@ -272,41 +272,40 @@
 
             {{-- Messages / Description --}}
             <div class="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
-
-                {{-- Message original de l'école --}}
-                <div class="flex items-start gap-4 max-w-3xl">
-                    <div class="w-10 h-10 rounded-full bg-[#031C5B] text-white flex items-center justify-center shrink-0 font-bold text-[14px]">
-                        {{ strtoupper(substr($activeTicket->school_name, 0, 2)) }}
-                    </div>
-                    <div>
-                        <div class="flex items-baseline gap-2 mb-2">
-                            <h4 class="text-[14px] font-bold text-[#111827]">{{ $activeTicket->school_name }}</h4>
-                            <span class="text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Demandeur</span>
-                            <span class="text-[12px] font-medium text-slate-400">{{ $activeTicket->created_at->format('d M Y, H:i') }}</span>
+                @foreach($activeTicket->thread() as $msg)
+                    @if($msg->sender_type === 'support')
+                        <div class="flex items-start gap-4 max-w-3xl ml-auto justify-end">
+                            <div>
+                                <div class="flex items-baseline gap-2 mb-2 justify-end">
+                                    <span class="text-[12px] font-medium text-slate-400">{{ $msg->created_at->format('d M Y, H:i') }}</span>
+                                    <span class="text-[11px] font-bold text-[#031C5B] bg-blue-50 px-2 py-0.5 rounded-full">{{ $msg->sender_name ?? 'Support AcademiaERP' }}</span>
+                                </div>
+                                <div class="bg-[#031C5B] text-white text-[14px] font-medium leading-relaxed rounded-2xl rounded-tr-sm p-4 shadow-sm">
+                                    {{ $msg->message }}
+                                </div>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-[#031C5B] text-white flex items-center justify-center shrink-0 font-bold text-[14px]">
+                                SA
+                            </div>
                         </div>
-                        <div class="bg-white border border-slate-200 text-slate-700 text-[14px] font-medium leading-relaxed rounded-2xl rounded-tl-sm p-4 shadow-sm">
-                            {{ $activeTicket->description ?: 'Aucune description fournie.' }}
+                    @else
+                        <div class="flex items-start gap-4 max-w-3xl">
+                            <div class="w-10 h-10 rounded-full bg-slate-600 text-white flex items-center justify-center shrink-0 font-bold text-[14px]">
+                                {{ strtoupper(substr($msg->sender_name ?? $activeTicket->school_name, 0, 2)) }}
+                            </div>
+                            <div>
+                                <div class="flex items-baseline gap-2 mb-2">
+                                    <h4 class="text-[14px] font-bold text-[#111827]">{{ $msg->sender_name ?? $activeTicket->school_name }}</h4>
+                                    <span class="text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Demandeur</span>
+                                    <span class="text-[12px] font-medium text-slate-400">{{ $msg->created_at->format('d M Y, H:i') }}</span>
+                                </div>
+                                <div class="bg-white border border-slate-200 text-slate-700 text-[14px] font-medium leading-relaxed rounded-2xl rounded-tl-sm p-4 shadow-sm">
+                                    {{ $msg->message }}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                @if(in_array($activeTicket->status, ['resolved', 'closed']))
-                <div class="flex items-start gap-4 max-w-3xl ml-auto justify-end">
-                    <div>
-                        <div class="flex items-baseline gap-2 mb-2 justify-end">
-                            <span class="text-[12px] font-medium text-slate-400">Support AcademiaERP</span>
-                            <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Résolu</span>
-                        </div>
-                        <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 text-[14px] font-medium leading-relaxed rounded-2xl rounded-tr-sm p-4">
-                            Ticket marqué comme résolu par l'équipe support AcademiaERP. Si le problème persiste, n'hésitez pas à rouvrir un nouveau ticket.
-                        </div>
-                    </div>
-                    <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 font-bold text-[14px]">
-                        SA
-                    </div>
-                </div>
-                @endif
-
+                    @endif
+                @endforeach
             </div>
 
             {{-- Reply Box — form fonctionnel --}}
@@ -368,10 +367,10 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.draft) {
+                    if (data.success && data.draft) {
                         textarea.value = data.draft;
                     } else {
-                        alert("Erreur: Impossible de générer le brouillon.");
+                        alert(data.error || "Erreur: Impossible de générer le brouillon.");
                     }
                 })
                 .catch(error => {

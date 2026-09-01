@@ -3,9 +3,11 @@
 namespace App\Modules\Transport\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class TripLog extends Model
 {
+    use BelongsToSchool;
     protected $table = 'transport_trip_logs';
 
     public const SHIFTS = [

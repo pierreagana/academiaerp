@@ -4,10 +4,11 @@ namespace App\Modules\Finance\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Support\Tenancy\BelongsToSchool;
 
 class FeeLevel extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToSchool;
 
     public const TYPES = [
         'tuition' => 'Scolarité',
@@ -34,6 +35,7 @@ class FeeLevel extends Model
         'academic_year',
         'registration_fee',
         'monthly_fee',
+        'monthly_amounts',
         'installments_count',
         'start_date',
     ];
@@ -41,12 +43,27 @@ class FeeLevel extends Model
     protected $casts = [
         'registration_fee' => 'decimal:2',
         'monthly_fee' => 'decimal:2',
+        'monthly_amounts' => 'array',
         'installments_count' => 'integer',
         'start_date' => 'date',
     ];
 
+    /** The amount due for the given 1-indexed installment — a custom breakdown entry if set, else the flat monthly_fee. */
+    public function installmentAmount(int $installmentNumber): float
+    {
+        if (!empty($this->monthly_amounts) && array_key_exists($installmentNumber - 1, $this->monthly_amounts)) {
+            return (float) $this->monthly_amounts[$installmentNumber - 1];
+        }
+
+        return (float) $this->monthly_fee;
+    }
+
     public function getTotalAmountAttribute(): float
     {
-        return (float) $this->registration_fee + ((float) $this->monthly_fee * $this->installments_count);
+        $monthlyTotal = !empty($this->monthly_amounts)
+            ? array_sum($this->monthly_amounts)
+            : (float) $this->monthly_fee * $this->installments_count;
+
+        return (float) $this->registration_fee + $monthlyTotal;
     }
 }

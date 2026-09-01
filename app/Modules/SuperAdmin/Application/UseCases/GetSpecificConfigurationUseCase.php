@@ -30,6 +30,18 @@ class GetSpecificConfigurationUseCase
             'fee_payer'                   => $settings->get('fee_payer', 'school'),
             'fee_rate'                    => $settings->get('fee_rate', '1,5'),
 
+            // Per-provider merchant credentials — merchant_id is stored/shown as-is,
+            // secret_key is encrypted at rest and never echoed back (only a "_set" flag
+            // so the form can show "already configured" without exposing the value).
+            ...collect(['orange_money', 'wave', 'mtn', 'card'])->flatMap(function ($provider) use ($settings) {
+                $encrypted = $settings->get($provider . '_secret_key');
+
+                return [
+                    $provider . '_merchant_id' => $settings->get($provider . '_merchant_id', ''),
+                    $provider . '_secret_key_set' => !empty($encrypted),
+                ];
+            })->all(),
+
             // Alerts Thresholds
             'alert_payment_delay_days'    => $settings->get('alert_payment_delay_days', '15'),
             'alert_server_load_percent'   => $settings->get('alert_server_load_percent', '85'),
@@ -44,6 +56,12 @@ class GetSpecificConfigurationUseCase
             'custom_domain'               => $settings->get('specific_custom_domain', ''),
             'storage_limit'               => $settings->get('specific_storage_limit', '100GB'),
             'api_rate_limit'              => $settings->get('specific_api_rate_limit', 1000),
+
+            // School Classification Taxonomies
+            'school_sectors'              => $settings->get('school_sectors', implode(', ', \App\Modules\SuperAdmin\Domain\Models\School::DEFAULT_SECTORS)),
+            'school_education_levels'     => $settings->get('school_education_levels', implode(', ', \App\Modules\SuperAdmin\Domain\Models\School::DEFAULT_LEVELS)),
+            'school_language_regimes'     => $settings->get('school_language_regimes', implode(', ', \App\Modules\SuperAdmin\Domain\Models\School::DEFAULT_LANGUAGE_REGIMES)),
+            'school_academic_years'       => $settings->get('school_academic_years', implode(', ', \App\Modules\SuperAdmin\Domain\Models\School::defaultAcademicYears())),
         ];
     }
 }

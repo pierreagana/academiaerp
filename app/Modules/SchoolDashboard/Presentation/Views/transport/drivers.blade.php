@@ -40,6 +40,7 @@
                 <thead>
                     <tr class="bg-[#F8FAFC]">
                         <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Nom</th>
+                        <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Téléphone</th>
                         <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Documents</th>
                         <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Assistant</th>
                     </tr>
@@ -55,6 +56,9 @@
                                 <span class="text-[13.5px] font-bold text-slate-800">{{ $driver->first_name }} {{ $driver->last_name }}</span>
                             </div>
                         </td>
+                        <td class="px-5 py-4 text-[13px] font-semibold text-slate-600">
+                            {{ $driver->phone ?? '—' }}
+                        </td>
                         <td class="px-5 py-4">
                             <div class="flex flex-wrap gap-1.5">
                                 @if($driver->id_card_front || $driver->id_card_back)
@@ -69,12 +73,19 @@
                             </div>
                         </td>
                         <td class="px-5 py-4 text-[13px] font-semibold text-slate-600">
-                            {{ $driver->has_assistant ? $driver->assistant_name : 'Aucun' }}
+                            @if($driver->has_assistant)
+                                {{ $driver->assistant_name }}
+                                @if($driver->assistant_phone)
+                                    <span class="block text-[11px] text-slate-400 font-normal">{{ $driver->assistant_phone }}</span>
+                                @endif
+                            @else
+                                Aucun
+                            @endif
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="3" class="px-5 py-10 text-center text-slate-500 font-medium">Aucun chauffeur enregistré.</td>
+                        <td colspan="4" class="px-5 py-10 text-center text-slate-500 font-medium">Aucun chauffeur enregistré.</td>
                     </tr>
                     @endforelse
                 </tbody>

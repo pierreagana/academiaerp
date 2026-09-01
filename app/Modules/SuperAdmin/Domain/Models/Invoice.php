@@ -3,9 +3,11 @@
 namespace App\Modules\SuperAdmin\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class Invoice extends Model
 {
+    use BelongsToSchool;
     protected $fillable = [
         'invoice_number',
         'school_id',

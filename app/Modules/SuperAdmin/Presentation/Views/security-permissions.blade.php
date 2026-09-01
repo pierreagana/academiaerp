@@ -40,34 +40,34 @@
         <!-- KPI 1 -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 relative overflow-hidden flex flex-col">
             <div class="flex justify-between items-start mb-2 relative z-10">
-                <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">SCORE DE SÉCURITÉ IA</h3>
+                <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">SCORE DE SÉCURITÉ</h3>
                 <i class="ph ph-shield-check text-2xl text-[#7C3AED] font-bold"></i>
             </div>
             <div class="flex items-baseline gap-2 mb-3 mt-1">
-                <h2 class="text-[36px] font-extrabold text-slate-900 leading-none flex items-baseline gap-1">94<span class="text-[18px] text-slate-400 font-medium">/100</span></h2>
+                <h2 class="text-[36px] font-extrabold text-slate-900 leading-none flex items-baseline gap-1">{{ $securityScore }}<span class="text-[18px] text-slate-400 font-medium">/100</span></h2>
             </div>
             <div class="flex items-center gap-2 mt-auto">
-                <span class="inline-flex items-center gap-1 bg-[#ECFDF5] text-[#059669] text-[11px] font-bold px-2 py-0.5 rounded-md">
-                    <i class="ph ph-trend-up"></i> +2 pts
-                </span>
-                <span class="text-[12px] font-medium text-slate-500">depuis la dernière analyse</span>
+                @if(empty($securityFactors))
+                    <span class="inline-flex items-center gap-1 bg-[#ECFDF5] text-[#059669] text-[11px] font-bold px-2 py-0.5 rounded-md">
+                        <i class="ph ph-check"></i> Aucun point faible détecté
+                    </span>
+                @else
+                    <span class="text-[12px] font-medium text-slate-500" title="{{ implode(' · ', $securityFactors) }}">{{ count($securityFactors) }} point(s) à corriger</span>
+                @endif
             </div>
         </div>
 
         <!-- KPI 2 -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 relative overflow-hidden flex flex-col">
             <div class="flex justify-between items-start mb-2 relative z-10">
-                <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">ADOPTION 2FA</h3>
+                <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">AUTHENTIFICATION 2FA</h3>
                 <i class="ph ph-lock-key text-2xl text-[#031C5B] font-bold"></i>
             </div>
             <div class="flex items-baseline gap-2 mb-4 mt-1">
-                <h2 class="text-[36px] font-extrabold text-slate-900 leading-none">87%</h2>
+                <h2 class="text-[28px] font-extrabold {{ $settings['2fa_enabled'] ? 'text-emerald-600' : 'text-red-600' }} leading-none">{{ $settings['2fa_enabled'] ? 'Activée' : 'Désactivée' }}</h2>
             </div>
             <div class="mt-auto">
-                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
-                    <div class="h-full bg-[#031C5B] rounded-full" style="width: 87%"></div>
-                </div>
-                <p class="text-[12px] font-medium text-slate-500">13% des comptes sans A2F</p>
+                <p class="text-[12px] font-medium text-slate-500">Politique de mot de passe : {{ ucfirst($settings['password_policy']) }} · Session {{ $settings['session_timeout'] }} min</p>
             </div>
         </div>
 

@@ -37,9 +37,9 @@
             </div>
         </div>
         <div class="bg-violet-50 rounded-2xl p-5 border border-violet-100 shadow-sm">
-            <p class="text-[11px] font-bold text-violet-500 uppercase tracking-wider mb-2 flex items-center gap-1"><i class="ph-fill ph-sparkle"></i> Économies IA</p>
-            <h3 class="text-2xl font-bold text-violet-900">+4.2M FCFA</h3>
-            <p class="text-[11px] text-violet-500 font-semibold">Optimisation des critères</p>
+            <p class="text-[11px] font-bold text-violet-500 uppercase tracking-wider mb-2 flex items-center gap-1"><i class="ph-fill ph-sparkle"></i> Budget Restant</p>
+            <h3 class="text-2xl font-bold text-violet-900">{{ number_format($remainingBudget / 1000000, 1) }}M FCFA</h3>
+            <p class="text-[11px] text-violet-500 font-semibold">Non décaissé à ce jour</p>
         </div>
     </div>
 
@@ -64,16 +64,18 @@
             </div>
         </div>
 
-        <!-- Insights IA -->
+        <!-- Insights (données réelles) -->
         <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-            <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2"><i class="ph-fill ph-sparkle text-violet-500"></i> Insights IA</h3>
+            <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2"><i class="ph-fill ph-sparkle text-violet-500"></i> Insights</h3>
             <div class="space-y-3">
                 <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <p class="text-[13px] text-slate-700"><span class="font-bold">Anomalie détectée :</span> vérifiez les dossiers en attente présentant des similitudes inhabituelles dans les relevés de notes.</p>
+                    <p class="text-[13px] text-slate-700"><span class="font-bold">Dossiers en attente :</span> {{ $pending->count() }} demande(s) de bourse à traiter.</p>
                 </div>
-                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <p class="text-[13px] text-slate-700"><span class="font-bold">Prévision :</span> surveillez l'évolution du budget alloué aux bourses sociales sur le trimestre.</p>
-                </div>
+                @if($topType)
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p class="text-[13px] text-slate-700"><span class="font-bold">Type le plus alloué :</span> {{ $topType['name'] }} ({{ $topType['percentage'] }}% du budget).</p>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

@@ -3,9 +3,11 @@
 namespace App\Modules\HR\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Support\Tenancy\BelongsToSchool;
 
 class PayrollComponent extends Model
 {
+    use BelongsToSchool;
     protected $table = 'hr_payroll_components';
 
     public const TYPES = [
