@@ -1,6 +1,8 @@
 <?php
 
+use App\Modules\ParentPortal\Presentation\Controllers\Api\MobileNotificationSettingsController;
 use App\Modules\ParentPortal\Presentation\Controllers\Api\MobileParentController;
+use App\Modules\ParentPortal\Presentation\Controllers\Api\MobileWalletController;
 use App\Modules\ParentPortal\Presentation\Controllers\Api\ParentAuthController;
 use App\Modules\ParentPortal\Presentation\Controllers\Api\ParentController;
 use App\Modules\Presence\Presentation\Controllers\Api\AccessDeviceController;
@@ -24,6 +26,12 @@ Route::prefix('v1')->name('api.v1.')->middleware('auth:sanctum')->group(function
     Route::get('/courses/overview', [MobileParentController::class, 'coursesOverview'])->name('courses.overview');
     Route::get('/courses/{courseId}', [MobileParentController::class, 'courseDetail'])->name('courses.detail')->whereNumber('courseId');
     Route::get('/fees', [MobileParentController::class, 'fees'])->name('fees');
+    Route::post('/fees/pay', [MobileParentController::class, 'payFees'])->name('fees.pay');
+    Route::get('/payment-methods', [MobileWalletController::class, 'paymentMethods'])->name('payment-methods');
+    Route::get('/wallet', [MobileWalletController::class, 'show'])->name('wallet');
+    Route::post('/wallet/recharge', [MobileWalletController::class, 'recharge'])->name('wallet.recharge');
+    Route::get('/notification-preferences', [MobileNotificationSettingsController::class, 'show'])->name('notification-preferences');
+    Route::put('/notification-preferences', [MobileNotificationSettingsController::class, 'update'])->name('notification-preferences.update');
     Route::get('/canteen', [MobileParentController::class, 'canteen'])->name('canteen');
     Route::post('/canteen/reservation', [MobileParentController::class, 'confirmCanteenOrder'])->name('canteen.reservation');
     Route::get('/canteen/history', [MobileParentController::class, 'canteenHistory'])->name('canteen.history');

@@ -1,50 +1,98 @@
 @extends('ParentPortal::layout')
 
-@section('title', 'Bulletin')
+@section('title', 'Bulletin - ' . $child->first_name)
 
 @section('content')
-<h1 class="text-[22px] font-bold text-slate-900 mb-1">Bulletin</h1>
-<p class="text-[13.5px] text-slate-500 mb-6">{{ $currentSemester->name ?? 'Semestre non défini' }}</p>
+
+<!-- TOP HEADER -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-black text-slate-900 tracking-tight">Bulletin de Notes &bull; {{ $child->first_name }}</h1>
+        <p class="text-sm font-medium text-slate-500 mt-0.5">Classe: <span class="font-bold text-slate-800">{{ $child->academicClass->name ?? 'Classe' }}</span> &bull; {{ $currentSemester->name ?? 'Semestre en cours' }}</p>
+    </div>
+
+    @if($isPublished)
+    <div class="flex items-center gap-3">
+        <button type="button" onclick="window.print()" 
+                class="inline-flex items-center gap-2 bg-blue-100/80 hover:bg-blue-200/80 text-[#061536] font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-xs">
+            <span class="material-symbols-outlined text-[18px]">download</span>
+            <span>Télécharger Bulletin (PDF)</span>
+        </button>
+    </div>
+    @endif
+</div>
 
 @if(!$isPublished)
-<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center">
-    <i class="ph-bold ph-eye-slash text-3xl text-slate-300 mb-3 block"></i>
-    <p class="font-bold text-slate-700 mb-1">Bulletin non encore publié</p>
-    <p class="text-[13px] text-slate-500">L'établissement n'a pas encore publié le bulletin de ce semestre.</p>
+<div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-12 text-center">
+    <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3">
+        <span class="material-symbols-outlined text-[28px]">visibility_off</span>
+    </div>
+    <h3 class="text-base font-bold text-slate-800 mb-1">Bulletin en cours d'élaboration</h3>
+    <p class="text-xs text-slate-500 max-w-sm mx-auto">L'administration scolaire n'a pas encore publié les notes officielles pour ce semestre.</p>
 </div>
 @else
-<div class="grid grid-cols-3 gap-4 mb-6">
-    <div class="bg-[#031C5B] text-white rounded-2xl p-5 text-center">
-        <div class="text-[26px] font-extrabold">{{ $average !== null ? $average . '/20' : '—' }}</div>
-        <div class="text-[10.5px] uppercase font-bold opacity-70 mt-1">Moy. Générale</div>
+
+<!-- SUMMARY METRIC TILES -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+    <div class="bg-[#061536] text-white rounded-3xl p-6 shadow-md shadow-blue-950/20 flex items-center justify-between">
+        <div>
+            <span class="text-[11.5px] font-bold text-blue-200/80 uppercase tracking-wider block mb-1">Moyenne Générale</span>
+            <div class="text-3xl font-black text-white">
+                {{ $average !== null ? number_format($average, 2) : '—' }} <span class="text-base font-bold text-blue-300/70">/20</span>
+            </div>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-blue-300 text-2xl">
+            <i class="ph-fill ph-calculator"></i>
+        </div>
     </div>
-    <div class="bg-white border border-slate-100 rounded-2xl p-5 text-center">
-        <div class="text-[26px] font-extrabold text-slate-800">{{ $rank ? $rank . 'e' : '—' }}</div>
-        <div class="text-[10.5px] uppercase font-bold text-slate-400 mt-1">Rang @if($classSize) sur {{ $classSize }} @endif</div>
+
+    <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs flex items-center justify-between">
+        <div>
+            <span class="text-[11.5px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rang dans la classe</span>
+            <div class="text-3xl font-black text-slate-900">
+                {{ $rank ? $rank . 'e' : '—' }} @if($classSize) <span class="text-sm font-bold text-slate-400">sur {{ $classSize }} élèves</span> @endif
+            </div>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-600 text-2xl">
+            <i class="ph-fill ph-trophy"></i>
+        </div>
     </div>
 </div>
 
-<div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-    <table class="w-full text-left border-collapse">
-        <thead>
-            <tr class="bg-slate-50 border-b border-slate-200">
-                <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase">Matière</th>
-                <th class="px-4 py-3 text-[11px] font-extrabold text-slate-500 uppercase">Note/20</th>
-                <th class="px-4 py-3 text-[11px] font-extrabold text-slate-500 uppercase">Appréciation</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-            @forelse($grades as $grade)
-                <tr>
-                    <td class="px-5 py-3.5 font-bold text-slate-800 text-[13.5px]">{{ $grade->subject->name }}</td>
-                    <td class="px-4 py-3.5 font-extrabold text-[#031C5B]">{{ number_format($grade->score, 2) }}</td>
-                    <td class="px-4 py-3.5 text-[12.5px] italic text-slate-500">{{ $grade->remark ?? '—' }}</td>
+<!-- GRADES TABLE -->
+<div class="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <h2 class="text-sm font-extrabold text-slate-900">Notes par Matière</h2>
+        <span class="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-xl">{{ count($grades) }} Matières</span>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50/70 border-b border-slate-100 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    <th class="px-5 py-3.5">Matière</th>
+                    <th class="px-4 py-3.5">Note / 20</th>
+                    <th class="px-4 py-3.5">Appréciation</th>
                 </tr>
-            @empty
-                <tr><td colspan="3" class="px-5 py-8 text-center text-slate-400 text-[13.5px]">Aucune note publiée pour l'instant.</td></tr>
-            @endforelse
-        </tbody>
-    </table>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-xs">
+                @forelse($grades as $grade)
+                    <tr class="hover:bg-slate-50/60 transition">
+                        <td class="px-5 py-4 font-bold text-slate-900 text-sm">{{ $grade->subject->name }}</td>
+                        <td class="px-4 py-4 font-black text-sm {{ $grade->score >= 10 ? 'text-[#061536]' : 'text-rose-600' }}">
+                            {{ number_format($grade->score, 2) }}
+                        </td>
+                        <td class="px-4 py-4 font-medium text-slate-500 italic">{{ $grade->remark ?? '—' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="3" class="px-5 py-8 text-center text-slate-400">Aucune note enregistrée pour l'instant.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 @endif
+
 @endsection

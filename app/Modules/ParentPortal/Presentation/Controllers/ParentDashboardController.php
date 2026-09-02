@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Canteen\Application\Services\CanteenEnrollmentService;
 use App\Modules\ParentPortal\Application\Services\ParentPortalService;
 use App\Modules\SchoolTrack\Application\Services\SchoolTrackAccessService;
+use App\Modules\SuperAdmin\Application\Services\AddressGeocodingService;
 use App\Modules\Transport\Application\Services\TransportEnrollmentService;
 use App\Modules\Transport\Domain\Models\Route as TransportRoute;
 use App\Modules\Transport\Domain\Models\TransportEnrollmentRequest;
@@ -22,6 +23,114 @@ class ParentDashboardController extends Controller
         $overview['schoolTrackStatus'] = $schoolTrackAccess->statusFor($parent);
 
         return view('ParentPortal::dashboard', array_merge(['parent' => $parent], $overview));
+    }
+
+    public function academic(Request $request, ParentPortalService $service)
+    {
+        $parent = Auth::guard('parent')->user();
+        $studentId = $request->query('student') ? (int) $request->query('student') : null;
+        $data = $service->academic($parent, $studentId);
+
+        return view('ParentPortal::academic', array_merge(['parent' => $parent], $data));
+    }
+
+    public function services(Request $request, ParentPortalService $service)
+    {
+        $parent = Auth::guard('parent')->user();
+        $studentId = $request->query('student') ? (int) $request->query('student') : null;
+        $data = $service->services($parent, $studentId);
+
+        return view('ParentPortal::services', array_merge(['parent' => $parent], $data));
+    }
+
+    public function infirmary(Request $request, ParentPortalService $service)
+    {
+        $parent = Auth::guard('parent')->user();
+        $studentId = $request->query('student') ? (int) $request->query('student') : null;
+        $data = $service->infirmary($parent, $studentId);
+
+        return view('ParentPortal::infirmary', array_merge(['parent' => $parent], $data));
+    }
+
+    public function schoolAccess(Request $request, ParentPortalService $service)
+    {
+        $parent = Auth::guard('parent')->user();
+        $studentId = $request->query('student') ? (int) $request->query('student') : null;
+        $data = $service->schoolAccess($parent, $studentId);
+
+        return view('ParentPortal::school_access', array_merge(['parent' => $parent], $data));
+    }
+
+    public function settings(ParentPortalService $service)
+    {
+        $parent = Auth::guard('parent')->user();
+        $data = $service->settings($parent);
+
+        return view('ParentPortal::settings', array_merge(['parent' => $parent], $data));
+    }
+
+    public function updateSettings(Request $request)
+    {
+        $parent = Auth::guard('parent')->user();
+        $request->validate([
+            'first_name' => 'nullable|string|max:100',
+            'last_name' => 'nullable|string|max:100',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string|max:30',
+            'address' => 'nullable|string|max:255',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        $fullName = trim(($request->first_name ?? '') . ' ' . ($request->last_name ?? ''));
+        if (empty($fullName)) {
+            $fullName = $parent->name;
+        }
+
+        $parent->update([
+            'name' => $fullName,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'address' => $request->address,
+            // Coordinates are only ever trusted when they came from a real
+            // selected autocomplete suggestion, never a free-text guess —
+            // the frontend clears these two fields the moment the address
+            // text is edited without picking a fresh suggestion.
+            'latitude' => $request->filled('address') ? $request->latitude : null,
+            'longitude' => $request->filled('address') ? $request->longitude : null,
+        ]);
+
+        return back()->with('success', 'Vos informations ont été mises à jour avec succès.');
+    }
+
+    /** Server-side proxy to Nominatim so the address-autocomplete field never calls a third party directly from the browser. */
+    public function searchAddress(Request $request, AddressGeocodingService $geocoder)
+    {
+        return response()->json($geocoder->search((string) $request->query('q', '')));
+    }
+
+    public function signLegalDocument(int $legalDocument, ParentPortalService $service)
+    {
+        $parent = Auth::guard('parent')->user();
+        $service->signLegalDocument($parent, $legalDocument);
+
+        return back()->with('success', 'Document signé avec succès.');
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|current_password:parent',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $parent = Auth::guard('parent')->user();
+        $parent->update([
+            'password' => $request->password,
+            'password_changed_at' => now(),
+        ]);
+
+        return back()->with('success', 'Votre mot de passe a été modifié avec succès.');
     }
 
     public function bulletin(int $student, ParentPortalService $service)
@@ -56,6 +165,14 @@ class ParentDashboardController extends Controller
         return view('ParentPortal::diplomas', array_merge(['child' => $child], $data));
     }
 
+    public function card(int $student, ParentPortalService $service)
+    {
+        $child = $service->ensureChildBelongsToParent(Auth::guard('parent')->user(), $student);
+        $data = $service->studentCard($child);
+
+        return view('ParentPortal::card', array_merge(['child' => $child], $data));
+    }
+
     public function printDiploma(int $student, int $award, ParentPortalService $service)
     {
         $child = $service->ensureChildBelongsToParent(Auth::guard('parent')->user(), $student);
@@ -67,12 +184,22 @@ class ParentDashboardController extends Controller
         return app(\App\Modules\SchoolDashboard\Presentation\Controllers\DiplomaTemplateController::class)->renderForAward($awardModel);
     }
 
+    public function finance(ParentPortalService $service)
+    {
+        $parent = Auth::guard('parent')->user();
+        $data = $service->finance($parent);
+
+        return view('ParentPortal::finance', array_merge(['parent' => $parent], $data));
+    }
+
     public function fees(int $student, ParentPortalService $service)
     {
-        $child = $service->ensureChildBelongsToParent(Auth::guard('parent')->user(), $student);
+        $parent = Auth::guard('parent')->user();
+        $child = $service->ensureChildBelongsToParent($parent, $student);
         $data = $service->fees($child);
+        $financeData = $service->finance($parent);
 
-        return view('ParentPortal::fees', array_merge(['child' => $child], $data));
+        return view('ParentPortal::fees', array_merge(['child' => $child, 'parent' => $parent], $data, $financeData));
     }
 
     public function canteen(int $student, ParentPortalService $service, CanteenEnrollmentService $enrollmentService)

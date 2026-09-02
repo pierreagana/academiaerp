@@ -3,6 +3,10 @@
 namespace App\Modules\ParentPortal\Presentation\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Academic\Domain\Models\NotificationLog;
+use App\Modules\Finance\Domain\Exceptions\InsufficientWalletBalanceException;
+use App\Modules\SuperAdmin\Domain\Models\SystemLog;
+use App\Support\Notifications\NotificationDispatcher;
 use App\Modules\Academic\Domain\Models\ParentAccount;
 use App\Modules\Academic\Domain\Models\Semester;
 use App\Modules\Academic\Domain\Models\Student;
@@ -623,6 +627,11 @@ class MobileParentController extends Controller
             }
         }
 
+        return $this->feesJsonResponse($student, $type);
+    }
+
+    private function feesJsonResponse(Student $student, string $type)
+    {
         $summary = $this->service->fees($student, $type);
 
         $lineStatusLabel = fn(string $status) => match ($status) {
@@ -662,6 +671,74 @@ class MobileParentController extends Controller
                 'reference' => $payment->reference ?? '',
             ])->values(),
         ]);
+    }
+
+    /**
+     * Parent-initiated fee payment. 'wallet' is real and instant: debits the
+     * parent's Academia Pay balance and records the Payment atomically —
+     * StudentFeeService allocates paid amounts against the computed
+     * schedule FIFO, so no installment identifier is needed, just the fee
+     * type + amount. 'cash' records no Payment (money hasn't been received
+     * yet) — only a SystemLog heads-up, mirroring BillingController::pay()'s
+     * existing cash-intent behavior for invoices; the real Payment row is
+     * still only ever created by staff via FeeController::storePayment()
+     * once they physically receive it.
+     */
+    public function payFees(Request $request, NotificationDispatcher $notifications)
+    {
+        $data = $request->validate([
+            'type' => ['required', 'string', 'in:' . implode(',', array_keys(FeeLevel::TYPES))],
+            'amount' => ['required', 'numeric', 'min:1'],
+            'method' => ['required', 'string', 'in:wallet,cash'],
+        ]);
+
+        $parent = $request->user();
+        $student = $this->resolveStudent($request);
+
+        if ($data['method'] === 'wallet') {
+            $wallet = $parent->getOrCreateWallet();
+
+            try {
+                $wallet->debit((float) $data['amount'], "FEE-{$student->id}-" . uniqid(), "Paiement {$data['type']} — {$student->first_name}");
+            } catch (InsufficientWalletBalanceException $e) {
+                return response()->json([
+                    'message' => "Solde Academia Pay insuffisant ({$e->balance} FCFA disponible, {$e->requested} FCFA requis).",
+                ], 422);
+            }
+
+            Payment::create([
+                'school_id' => $student->school_id,
+                'student_id' => $student->id,
+                'type' => $data['type'],
+                'amount' => $data['amount'],
+                'method' => 'wallet',
+                'paid_at' => now()->toDateString(),
+            ]);
+
+            $label = FeeLevel::TYPES[$data['type']];
+            $amount = number_format((float) $data['amount'], 0, ',', ' ');
+            $notifications->notifyStudentGuardians(
+                $student, 'payment', 'Paiement reçu',
+                "Un paiement de {$amount} FCFA pour {$label} de {$student->first_name} a été enregistré (Academia Pay)."
+            );
+
+            // 'paymentStatus' is distinct from the fee summary's own 'status'
+            // field (paid/partial/late/...) already present in the response below.
+            $response = $this->feesJsonResponse($student, $data['type']);
+            $response->setData(['paymentStatus' => 'confirmed'] + $response->getData(true));
+
+            return $response;
+        }
+
+        // Cash: informational only — no Payment row, no schedule change.
+        SystemLog::create([
+            'level' => 'info',
+            'message' => "{$parent->name} a indiqué vouloir régler {$data['amount']} FCFA en espèces pour {$student->first_name} ({$data['type']})",
+            'context' => ['student_id' => $student->id, 'parent_id' => $parent->id, 'type' => $data['type'], 'amount' => $data['amount']],
+            'source' => 'parent_cash_intent',
+        ]);
+
+        return response()->json(['paymentStatus' => 'pending', 'message' => 'Merci de vous présenter à l\'école pour régler ce montant en espèces.']);
     }
 
     /**
@@ -2300,6 +2377,36 @@ class MobileParentController extends Controller
                 });
         }
 
+        // Real-time events dispatched by NotificationDispatcher. 'fee' (late
+        // payment reminder) is deliberately excluded — the block above
+        // already computes late fees live on every request, so merging the
+        // (dedup-windowed, up to 20h stale) reminder log entry too would
+        // show the same alert twice. 'payment' (payment received) is a
+        // distinct type and does appear here.
+        NotificationLog::where('parent_id', $parent->id)
+            ->where('type', '!=', 'fee')
+            ->orderByDesc('created_at')
+            ->limit(30)
+            ->get()
+            ->each(function (NotificationLog $n) use ($items) {
+                $type = match (true) {
+                    $n->type === 'infirmary' => 'urgent',
+                    in_array($n->type, ['homework', 'bulletin'], true) => 'pedagogique',
+                    default => 'normal',
+                };
+
+                $items->push([
+                    'id' => "log-{$n->id}",
+                    'title' => $n->title,
+                    'description' => $n->body,
+                    'sortAt' => $n->created_at,
+                    'type' => $type,
+                    'actionText' => null,
+                    'studentId' => $n->student_id ? (string) $n->student_id : null,
+                    'feeType' => null,
+                ]);
+            });
+
         $notifications = $items->sortByDesc('sortAt')->values()->take(30)->map(function ($n) {
             $n['time'] = $this->relativeNotifTime($n['sortAt']);
             $n['isRead'] = false;
@@ -2596,10 +2703,19 @@ class MobileParentController extends Controller
     {
         $validated = $request->validate([
             'fcm_token' => 'required|string|max:255',
+            'platform' => ['required', 'string', 'in:' . implode(',', \App\Modules\Academic\Domain\Models\DeviceToken::PLATFORMS)],
         ]);
 
-        $parent = $request->user();
-        $parent->update(['fcm_token' => $validated['fcm_token']]);
+        // A parent can have several devices (e.g. Android + a browser tab) —
+        // each gets its own row rather than one overwriting the other.
+        \App\Modules\Academic\Domain\Models\DeviceToken::updateOrCreate(
+            ['token' => $validated['fcm_token']],
+            [
+                'parent_id' => $request->user()->id,
+                'platform' => $validated['platform'],
+                'last_used_at' => now(),
+            ]
+        );
 
         return response()->json(['message' => 'Token enregistré.', 'status' => 'success']);
     }

@@ -95,7 +95,7 @@ class BroadcastController extends Controller
             }
 
             $result = $pushService->sendToParents(
-                ParentAccount::whereNotNull('fcm_token')->get(),
+                ParentAccount::whereHas('deviceTokens')->with('deviceTokens')->get(),
                 $validated['title'],
                 $validated['message']
             );

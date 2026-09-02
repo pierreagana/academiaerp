@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Academic\Domain\Models\ParentAccount;
 use App\Modules\Academic\Domain\Models\Student;
 use App\Modules\Canteen\Domain\Models\CanteenEnrollmentRequest;
+use App\Support\Notifications\NotificationDispatcher;
 
 /**
  * Single source of truth for the canteen enrollment request/approval
@@ -16,6 +17,10 @@ use App\Modules\Canteen\Domain\Models\CanteenEnrollmentRequest;
  */
 class CanteenEnrollmentService
 {
+    public function __construct(private NotificationDispatcher $notifications)
+    {
+    }
+
     public function requestEnrollment(Student $student, ?ParentAccount $parent = null): CanteenEnrollmentRequest
     {
         return CanteenEnrollmentRequest::create([
@@ -33,6 +38,14 @@ class CanteenEnrollmentService
             'reviewed_by_user_id' => $reviewer->id,
             'reviewed_at' => now(),
         ]);
+
+        $student = $request->student;
+        if ($student) {
+            $this->notifications->notifyStudentGuardians(
+                $student, 'canteen', 'Inscription cantine approuvée',
+                "L'inscription à la cantine de {$student->first_name} a été approuvée."
+            );
+        }
     }
 
     public function reject(CanteenEnrollmentRequest $request, User $reviewer, ?string $reason = null): void
@@ -43,6 +56,14 @@ class CanteenEnrollmentService
             'reviewed_at' => now(),
             'rejection_reason' => $reason,
         ]);
+
+        $student = $request->student;
+        if ($student) {
+            $this->notifications->notifyStudentGuardians(
+                $student, 'canteen', 'Inscription cantine refusée',
+                "L'inscription à la cantine de {$student->first_name} a été refusée" . ($reason ? " ({$reason})." : '.')
+            );
+        }
     }
 
     /** Removes an already-approved student from the canteen (school-initiated) — meals/scans are refused right away since isEnrolled() only reads the latest row. */

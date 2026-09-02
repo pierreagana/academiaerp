@@ -7,6 +7,7 @@ use App\Modules\Academic\Domain\Models\ParentAccount;
 use App\Modules\Academic\Domain\Models\Student;
 use App\Modules\Transport\Domain\Models\RouteStop;
 use App\Modules\Transport\Domain\Models\TransportEnrollmentRequest;
+use App\Support\Notifications\NotificationDispatcher;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -18,6 +19,10 @@ use Illuminate\Support\Facades\DB;
  */
 class TransportEnrollmentService
 {
+    public function __construct(private NotificationDispatcher $notifications)
+    {
+    }
+
     public function requestEnrollment(Student $student, RouteStop $stop, string $period, ?ParentAccount $parent = null): TransportEnrollmentRequest
     {
         return TransportEnrollmentRequest::create([
@@ -41,6 +46,22 @@ class TransportEnrollmentService
 
             $this->attachPivot($request->student_id, $request->route_stop_id, $request->period);
         });
+
+        $student = $request->student;
+        if ($student) {
+            $busNumber = $this->busNumberFor($request);
+            $this->notifications->notifyStudentGuardians(
+                $student, 'bus', 'Inscription transport approuvée',
+                "L'inscription au transport scolaire de {$student->first_name} a été approuvée"
+                    . ($busNumber ? " (matricule {$busNumber})." : '.')
+            );
+        }
+    }
+
+    /** The bus assigned to this request's route, if any — a route can exist without one yet. */
+    private function busNumberFor(TransportEnrollmentRequest $request): ?string
+    {
+        return $request->routeStop?->route?->bus?->bus_number;
     }
 
     public function reject(TransportEnrollmentRequest $request, User $reviewer, ?string $reason = null): void
@@ -51,6 +72,17 @@ class TransportEnrollmentService
             'reviewed_at' => now(),
             'rejection_reason' => $reason,
         ]);
+
+        $student = $request->student;
+        if ($student) {
+            $busNumber = $this->busNumberFor($request);
+            $suffix = $reason ? " ({$reason})" : '';
+            $suffix .= $busNumber ? " (matricule {$busNumber})." : '.';
+            $this->notifications->notifyStudentGuardians(
+                $student, 'bus', 'Inscription transport refusée',
+                "L'inscription au transport scolaire de {$student->first_name} a été refusée" . $suffix
+            );
+        }
     }
 
     /** Removes an already-approved student from the service (school-initiated) — detaches the pivot immediately, so any later scan for that period is refused right away. */

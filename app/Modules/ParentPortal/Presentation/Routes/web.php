@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\ParentPortal\Presentation\Controllers\NotificationController;
 use App\Modules\ParentPortal\Presentation\Controllers\ParentAuthController;
 use App\Modules\ParentPortal\Presentation\Controllers\ParentChildController;
 use App\Modules\ParentPortal\Presentation\Controllers\ParentDashboardController;
@@ -21,7 +22,29 @@ Route::prefix('parent')->name('parent.')->group(function () {
         Route::post('/ajouter-enfant', [ParentChildController::class, 'addChild'])->middleware('throttle:5,1')->name('children.add');
 
         Route::get('/', [ParentDashboardController::class, 'dashboard'])->name('dashboard');
-        Route::post('/school-track/souscrire', [SchoolTrackWebController::class, 'subscribe'])->middleware('throttle:10,1')->name('school-track.subscribe');
+        Route::get('/academique', [ParentDashboardController::class, 'academic'])->name('academic');
+        Route::get('/finance', [ParentDashboardController::class, 'finance'])->name('finance');
+        Route::get('/services', [ParentDashboardController::class, 'services'])->name('services');
+        Route::get('/infirmerie', [ParentDashboardController::class, 'infirmary'])->name('infirmary');
+        Route::get('/acces-scolaire', [ParentDashboardController::class, 'schoolAccess'])->name('school-access');
+        Route::get('/parametres', [ParentDashboardController::class, 'settings'])->name('settings');
+        Route::post('/parametres', [ParentDashboardController::class, 'updateSettings'])->name('settings.update');
+        Route::post('/parametres/mot-de-passe', [ParentDashboardController::class, 'updatePassword'])->name('settings.password');
+        Route::get('/parametres/adresse/recherche', [ParentDashboardController::class, 'searchAddress'])->middleware('throttle:20,1')->name('settings.address.search');
+        Route::post('/parametres/documents-legaux/{legalDocument}/signer', [ParentDashboardController::class, 'signLegalDocument'])->name('legal-documents.sign')->whereNumber('legalDocument');
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
+        Route::post('/notifications/{notification}/lu', [NotificationController::class, 'markRead'])->name('notifications.read')->whereNumber('notification');
+        Route::post('/notifications/tout-lire', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+        // School Track
+        Route::prefix('school-track')->name('school-track.')->group(function () {
+            Route::get('/', [SchoolTrackWebController::class, 'index'])->name('index');
+            Route::get('/comparateur', [SchoolTrackWebController::class, 'compare'])->name('compare');
+            Route::get('/carte', [SchoolTrackWebController::class, 'map'])->name('map');
+            Route::post('/comparateur/toggle', [SchoolTrackWebController::class, 'toggleCompare'])->name('compare.toggle');
+            Route::post('/souscrire', [SchoolTrackWebController::class, 'subscribe'])->middleware('throttle:10,1')->name('subscribe');
+            Route::get('/{id}', [SchoolTrackWebController::class, 'show'])->name('show');
+        });
+        Route::get('/{student}/carte-scolaire', [ParentDashboardController::class, 'card'])->name('card')->whereNumber('student');
         Route::get('/{student}/bulletin', [ParentDashboardController::class, 'bulletin'])->name('bulletin')->whereNumber('student');
         Route::get('/{student}/diplomes', [ParentDashboardController::class, 'diplomas'])->name('diplomes')->whereNumber('student');
         Route::get('/{student}/diplomes/{award}/imprimer', [ParentDashboardController::class, 'printDiploma'])->name('diplomes.print')->whereNumber('student')->whereNumber('award');

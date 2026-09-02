@@ -101,6 +101,38 @@ class FeeController extends Controller
         return back()->with('success', 'Paiement enregistré avec succès.');
     }
 
+    public function walletRechargeRequests()
+    {
+        $schoolId = auth()->user()->school_id;
+
+        $requests = \App\Modules\Finance\Domain\Models\WalletRechargeRequest::where('school_id', $schoolId)
+            ->where('status', \App\Modules\Finance\Domain\Models\WalletRechargeRequest::STATUS_PENDING)
+            ->with('parent')
+            ->latest()
+            ->get();
+
+        return view('SchoolDashboard::finance.wallet-recharges', compact('requests'));
+    }
+
+    public function approveWalletRecharge($id, \App\Modules\Finance\Application\Services\WalletRechargeService $rechargeService)
+    {
+        $schoolId = auth()->user()->school_id;
+        $rechargeRequest = \App\Modules\Finance\Domain\Models\WalletRechargeRequest::where('school_id', $schoolId)->findOrFail($id);
+        $rechargeService->approve($rechargeRequest, auth()->user());
+
+        return back()->with('success', 'Recharge confirmée et créditée au portefeuille du parent.');
+    }
+
+    public function rejectWalletRecharge(Request $request, $id, \App\Modules\Finance\Application\Services\WalletRechargeService $rechargeService)
+    {
+        $schoolId = auth()->user()->school_id;
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
+        $rechargeRequest = \App\Modules\Finance\Domain\Models\WalletRechargeRequest::where('school_id', $schoolId)->findOrFail($id);
+        $rechargeService->reject($rechargeRequest, auth()->user(), $data['reason'] ?? null);
+
+        return back()->with('success', 'Demande de recharge refusée.');
+    }
+
     public function config(FeeLevelRepositoryInterface $repository, Request $request)
     {
         $schoolId = auth()->user()->school_id;

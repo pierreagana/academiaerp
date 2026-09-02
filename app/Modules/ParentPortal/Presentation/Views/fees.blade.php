@@ -1,59 +1,99 @@
 @extends('ParentPortal::layout')
 
-@section('title', 'Frais Scolaires')
+@section('title', 'Frais Scolaires - ' . $child->first_name)
 
 @section('content')
-<h1 class="text-[22px] font-bold text-slate-900 mb-6">Frais Scolaires</h1>
+
+<!-- HEADER WITH BREADCRUMB & WALLET LINK -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-black text-slate-900 tracking-tight">Frais de Scolarité &bull; {{ $child->first_name }}</h1>
+        <p class="text-sm font-medium text-slate-500 mt-0.5">Classe: <span class="font-bold text-slate-800">{{ $child->academicClass->name ?? 'Non assignée' }}</span>
+            @if($academicYear ?? null) &bull; Année: {{ $academicYear }} @endif
+        </p>
+    </div>
+
+    <div class="flex items-center gap-3">
+        <a href="{{ route('parent.finance') }}" 
+           class="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-[#061536] font-bold text-xs px-4 py-2.5 rounded-xl transition">
+            <span class="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+            <span>Portefeuille & Transactions</span>
+        </a>
+    </div>
+</div>
 
 @if(!$feeLevel)
-<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center text-slate-400 text-[13.5px]">
-    Aucun barème de frais configuré pour cet élève pour le moment.
+<div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-12 text-center text-slate-400 text-sm">
+    <div class="w-14 h-14 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-3">
+        <span class="material-symbols-outlined text-[28px]">receipt</span>
+    </div>
+    <p class="font-bold text-slate-700 mb-1">Aucun barème configuré</p>
+    <p class="text-xs text-slate-400">L'administration scolaire n'a pas encore défini de barème pour ce niveau.</p>
 </div>
 @else
-<div class="grid grid-cols-3 gap-4 mb-6">
-    <div class="bg-white border border-slate-100 rounded-2xl p-5 text-center">
-        <div class="text-[22px] font-extrabold text-slate-800">{{ number_format($total, 0, ',', ' ') }}</div>
-        <div class="text-[10.5px] uppercase font-bold text-slate-400 mt-1">Total Dû</div>
+
+<!-- 3 METRIC CARDS -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-xs">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Annuel Dû</span>
+        <div class="text-2xl font-black text-slate-900">{{ number_format($total, 0, ',', ' ') }} <span class="text-xs font-bold text-slate-400">FCFA</span></div>
     </div>
-    <div class="bg-white border border-slate-100 rounded-2xl p-5 text-center">
-        <div class="text-[22px] font-extrabold text-emerald-600">{{ number_format($paid, 0, ',', ' ') }}</div>
-        <div class="text-[10.5px] uppercase font-bold text-slate-400 mt-1">Déjà Payé</div>
+
+    <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-xs">
+        <span class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider block mb-1">Montant Déjà Réglé</span>
+        <div class="text-2xl font-black text-emerald-600">{{ number_format($paid, 0, ',', ' ') }} <span class="text-xs font-bold text-slate-400">FCFA</span></div>
     </div>
-    <div class="bg-[#031C5B] text-white rounded-2xl p-5 text-center">
-        <div class="text-[22px] font-extrabold">{{ number_format($remaining, 0, ',', ' ') }}</div>
-        <div class="text-[10.5px] uppercase font-bold opacity-70 mt-1">Restant</div>
+
+    <div class="bg-[#061536] text-white rounded-3xl p-5 shadow-md shadow-blue-950/20">
+        <span class="text-[11px] font-bold text-blue-200/80 uppercase tracking-wider block mb-1">Reste à Payer</span>
+        <div class="text-2xl font-black text-white">{{ number_format($remaining, 0, ',', ' ') }} <span class="text-xs font-bold text-blue-300/60">FCFA</span></div>
     </div>
 </div>
 
-<div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-    <table class="w-full text-left border-collapse">
-        <thead>
-            <tr class="bg-slate-50 border-b border-slate-200">
-                <th class="px-5 py-3 text-[11px] font-extrabold text-slate-500 uppercase">Échéance</th>
-                <th class="px-4 py-3 text-[11px] font-extrabold text-slate-500 uppercase">Montant</th>
-                <th class="px-4 py-3 text-[11px] font-extrabold text-slate-500 uppercase">Date Limite</th>
-                <th class="px-4 py-3 text-[11px] font-extrabold text-slate-500 uppercase">Statut</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-            @foreach($schedule as $line)
-                <tr>
-                    <td class="px-5 py-3.5 font-bold text-slate-800 text-[13.5px]">{{ $line['label'] }}</td>
-                    <td class="px-4 py-3.5 text-[12.5px] text-slate-600">{{ number_format($line['amount'], 0, ',', ' ') }}</td>
-                    <td class="px-4 py-3.5 text-[12.5px] text-slate-500">{{ $line['due_date']->translatedFormat('d M Y') }}</td>
-                    <td class="px-4 py-3.5">
-                        @if($line['status'] === 'paid')
-                            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">Payé</span>
-                        @elseif($line['status'] === 'due')
-                            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">À payer</span>
-                        @else
-                            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">À venir</span>
-                        @endif
-                    </td>
+<!-- SCHEDULE TABLE -->
+<div class="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <h2 class="text-sm font-extrabold text-slate-900">Échéancier des Versements</h2>
+        <span class="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-xl">{{ count($schedule) }} Échéances</span>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50/70 border-b border-slate-100 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    <th class="px-5 py-3.5">Échéance</th>
+                    <th class="px-4 py-3.5">Montant</th>
+                    <th class="px-4 py-3.5">Date Limite</th>
+                    <th class="px-4 py-3.5 text-right">Statut</th>
                 </tr>
-            @endforeach
-        </tbody>
-    </table>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-xs">
+                @foreach($schedule as $line)
+                    <tr class="hover:bg-slate-50/60 transition">
+                        <td class="px-5 py-4 font-bold text-slate-900">{{ $line['label'] }}</td>
+                        <td class="px-4 py-4 font-extrabold text-slate-800">{{ number_format($line['amount'], 0, ',', ' ') }} FCFA</td>
+                        <td class="px-4 py-4 font-medium text-slate-500">{{ $line['due_date']->translatedFormat('d M Y') }}</td>
+                        <td class="px-4 py-4 text-right">
+                            @if($line['status'] === 'paid')
+                                <span class="inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                    <span class="material-symbols-outlined text-[13px]">check</span> Payé
+                                </span>
+                            @elseif($line['status'] === 'due')
+                                <span class="inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60">
+                                    <span class="material-symbols-outlined text-[13px]">schedule</span> À payer
+                                </span>
+                            @else
+                                <span class="inline-block text-[11px] font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-500">
+                                    À venir
+                                </span>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 </div>
 @endif
+
 @endsection

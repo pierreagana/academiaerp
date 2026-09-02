@@ -37,4 +37,9 @@ class Intervention extends Model
     {
         return $this->belongsTo(Student::class);
     }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
+    }
 }

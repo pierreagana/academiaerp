@@ -2,6 +2,7 @@
 
 namespace App\Support\Notifications;
 
+use App\Modules\Academic\Domain\Models\DeviceToken;
 use App\Modules\Academic\Domain\Models\ParentAccount;
 use App\Modules\SuperAdmin\Domain\Models\GlobalSetting;
 use Illuminate\Support\Facades\Log;
@@ -55,7 +56,7 @@ class FirebasePushService
 
             return true;
         } catch (NotFound $e) {
-            ParentAccount::where('fcm_token', $e->token())->update(['fcm_token' => null]);
+            DeviceToken::where('token', $e->token())->delete();
             Log::info('Firebase push token no longer registered — cleared', ['token' => $e->token()]);
             return false;
         } catch (MessagingException|\Throwable $e) {
@@ -65,8 +66,9 @@ class FirebasePushService
     }
 
     /**
-     * Sends the same notification to every parent with a registered token.
-     * Parents without one are counted as skipped, not failed.
+     * Sends the same notification to every device (web + mobile, however many
+     * each parent has registered) belonging to every parent in the list.
+     * A parent with zero registered devices is counted once as skipped.
      *
      * @param iterable<ParentAccount> $parents
      * @return array{sent:int,failed:int,skipped:int}
@@ -76,15 +78,19 @@ class FirebasePushService
         $result = ['sent' => 0, 'failed' => 0, 'skipped' => 0];
 
         foreach ($parents as $parent) {
-            if (empty($parent->fcm_token)) {
+            $tokens = $parent->deviceTokens;
+
+            if ($tokens->isEmpty()) {
                 $result['skipped']++;
                 continue;
             }
 
-            if ($this->sendToToken($parent->fcm_token, $title, $body, $data)) {
-                $result['sent']++;
-            } else {
-                $result['failed']++;
+            foreach ($tokens as $deviceToken) {
+                if ($this->sendToToken($deviceToken->token, $title, $body, $data)) {
+                    $result['sent']++;
+                } else {
+                    $result['failed']++;
+                }
             }
         }
 

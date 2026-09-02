@@ -7,6 +7,9 @@
     <div class="flex items-center justify-between">
         <h2 class="text-2xl font-bold text-slate-800">Profil de l'Établissement</h2>
         <div class="flex gap-3">
+            <a href="{{ route('school.legal-documents.index') }}" class="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition flex items-center gap-2">
+                <i class="ph ph-file-text"></i> Documents Légaux
+            </a>
             <a href="{{ route('school.establishment.edit') }}" class="px-4 py-2 bg-primary-dynamic text-white font-bold rounded-xl hover:opacity-90 transition flex items-center gap-2">
                 <i class="ph ph-pencil-simple"></i> Modifier
             </a>

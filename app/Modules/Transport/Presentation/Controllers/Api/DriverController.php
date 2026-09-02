@@ -6,16 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Modules\Academic\Domain\Models\Student;
 use App\Modules\Transport\Application\DTOs\LogTripDTO;
 use App\Modules\Transport\Application\Services\BusPositionBroadcastService;
+use App\Modules\Transport\Application\Services\BusProximityService;
 use App\Modules\Transport\Application\Services\ReverseGeocodingService;
 use App\Modules\Transport\Application\Services\TransportEnrollmentService;
 use App\Modules\Transport\Application\UseCases\LogTripUseCase;
 use App\Modules\Transport\Domain\Models\Bus;
 use App\Modules\Transport\Domain\Models\Driver;
+use App\Modules\Transport\Domain\Models\NotificationPreference;
 use App\Modules\Transport\Domain\Models\Route;
 use App\Modules\Transport\Domain\Models\RouteStop;
 use App\Modules\Transport\Domain\Models\StopArrival;
 use App\Modules\Transport\Domain\Models\TransportBoardingScan;
 use App\Modules\Transport\Domain\Models\TripLog;
+use App\Support\Notifications\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -29,6 +32,10 @@ class DriverController extends Controller
 {
     /** period (used everywhere else in Transport) <-> TripLog::SHIFTS (French, historical). */
     private const PERIOD_TO_SHIFT = ['morning' => 'matin', 'evening' => 'soir'];
+
+    public function __construct(private NotificationDispatcher $notifications)
+    {
+    }
 
     private function busFor(Driver $driver): ?Bus
     {
@@ -206,7 +213,7 @@ class DriverController extends Controller
         return response()->json(['message' => 'Trajet terminé.']);
     }
 
-    public function updatePosition(Request $request, BusPositionBroadcastService $broadcastService)
+    public function updatePosition(Request $request, BusPositionBroadcastService $broadcastService, BusProximityService $proximityService)
     {
         $data = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
@@ -222,6 +229,7 @@ class DriverController extends Controller
         }
 
         $broadcastService->updateAndBroadcast($bus, (float) $data['latitude'], (float) $data['longitude']);
+        $proximityService->checkAndNotify($bus, (float) $data['latitude'], (float) $data['longitude']);
 
         return response()->json(['message' => 'Position mise à jour.']);
     }
@@ -291,6 +299,23 @@ class DriverController extends Controller
             'scanned_by_driver_id' => $driver->id,
         ]);
 
+        if ($data['action'] === 'board') {
+            // Gated: "Élève récupéré" toggle in Paramètres de Notification.
+            $this->notifications->notifyStudentGuardiansIfPreferred(
+                $student,
+                fn (NotificationPreference $pref) => $pref->student_picked_up,
+                'bus', 'Montée dans le bus',
+                "{$student->first_name} est monté(e) dans le bus (matricule {$bus->bus_number})."
+            );
+        } else {
+            // No corresponding toggle in the reference settings screen —
+            // always sent, same as before this feature existed.
+            $this->notifications->notifyStudentGuardians(
+                $student, 'bus', 'Descente du bus',
+                "{$student->first_name} est descendu(e) du bus (matricule {$bus->bus_number})."
+            );
+        }
+
         return response()->json([
             'message' => $this->scanMessage($data['action']),
             'action' => $data['action'],
@@ -342,7 +367,80 @@ class DriverController extends Controller
             'arrived_at' => now(),
         ]);
 
+        $this->notifyAroundStopArrival($bus, $stop);
+
         return response()->json(['message' => 'Arrivée confirmée.', 'arrivedAt' => $arrival->arrived_at->toIso8601String()]);
+    }
+
+    /**
+     * The three "Paramètres de Notification" triggers anchored to a stop
+     * arrival: the stop just reached, the one now "next" (sequence+1), and
+     * the one just left behind (sequence-1) — checked for any assigned
+     * student with no 'board' scan yet today (missed pickup). Only the
+     * morning/pickup leg gets "next stop"/"missed pickup", matching the
+     * reference screen's own wording (no such toggles exist for dropoff).
+     */
+    private function notifyAroundStopArrival(Bus $bus, RouteStop $stop): void
+    {
+        $period = $bus->active_shift;
+        $isPickup = $period === 'morning';
+        $today = Carbon::today();
+
+        $stopStudents = fn (RouteStop $s) => $s->students()->wherePivot('period', $period)->get();
+
+        foreach ($stopStudents($stop) as $student) {
+            $this->notifications->notifyStudentGuardiansIfPreferred(
+                $student,
+                fn (NotificationPreference $pref) => $isPickup ? $pref->bus_arrived_pickup : $pref->bus_arrived_dropoff,
+                'bus',
+                $isPickup ? 'Bus arrivé au point de ramassage' : 'Bus arrivé au point de dépose',
+                "Le bus est arrivé à l'arrêt de {$student->first_name} (matricule {$bus->bus_number})."
+            );
+        }
+
+        if (!$isPickup) {
+            return;
+        }
+
+        $orderedStops = $stop->route->stops; // already sequence-ordered
+        $currentIndex = $orderedStops->search(fn ($s) => $s->id === $stop->id);
+        if ($currentIndex === false) {
+            return;
+        }
+
+        $nextStop = $orderedStops->get($currentIndex + 1);
+        if ($nextStop) {
+            foreach ($stopStudents($nextStop) as $student) {
+                $this->notifications->notifyStudentGuardiansIfPreferred(
+                    $student,
+                    fn (NotificationPreference $pref) => $pref->next_stop_is_pickup,
+                    'bus', 'Prochain arrêt : votre point de ramassage',
+                    "Le prochain arrêt est celui de {$student->first_name} (matricule {$bus->bus_number})."
+                );
+            }
+        }
+
+        $previousStop = $currentIndex > 0 ? $orderedStops->get($currentIndex - 1) : null;
+        if ($previousStop) {
+            foreach ($stopStudents($previousStop) as $student) {
+                $boarded = TransportBoardingScan::where('student_id', $student->id)
+                    ->where('period', $period)
+                    ->where('action', 'board')
+                    ->whereDate('scanned_at', $today)
+                    ->exists();
+
+                if ($boarded) {
+                    continue;
+                }
+
+                $this->notifications->notifyStudentGuardiansIfPreferred(
+                    $student,
+                    fn (NotificationPreference $pref) => $pref->student_missed_pickup,
+                    'bus', 'Absence au ramassage',
+                    "{$student->first_name} n'a pas été enregistré(e) comme monté(e) dans le bus (matricule {$bus->bus_number}) à son arrêt."
+                );
+            }
+        }
     }
 
     /**

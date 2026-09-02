@@ -7,17 +7,26 @@ use App\Modules\Academic\Domain\Models\Student;
 use App\Modules\Academic\Domain\Models\Teacher;
 use App\Modules\Presence\Domain\Models\AccessLog;
 use App\Modules\Presence\Domain\Repositories\AccessLogRepositoryInterface;
+use App\Support\Notifications\NotificationDispatcher;
 use Illuminate\Support\Carbon;
 
 class RecordAccessCheckInUseCase
 {
     private $repository;
 
-    public function __construct(AccessLogRepositoryInterface $repository)
-    {
+    public function __construct(
+        AccessLogRepositoryInterface $repository,
+        private NotificationDispatcher $notifications
+    ) {
         $this->repository = $repository;
     }
 
+    /**
+     * $context distinguishes which physical point this scan came from for
+     * notification wording — AccessPoint itself has no type/category column
+     * to derive this from, so callers pass it explicitly ('ecole' by default,
+     * matching the common gate-entry case; handleCanteen() passes 'cantine').
+     */
     public function execute(
         int $schoolId,
         string $scannedCode,
@@ -25,7 +34,9 @@ class RecordAccessCheckInUseCase
         ?int $accessPointId,
         ?int $branchId = null,
         ?string $clientScanId = null,
-        ?Carbon $occurredAt = null
+        ?Carbon $occurredAt = null,
+        string $context = 'ecole',
+        bool $notify = true
     ): AccessLog {
         // Idempotent replay: the offline-capable scanner app may upload the
         // same queued scan twice (e.g. it never saw the sync response) —
@@ -42,7 +53,7 @@ class RecordAccessCheckInUseCase
 
         $holder = $this->resolveHolder($schoolId, $matricule);
 
-        return $this->repository->create([
+        $log = $this->repository->create([
             'school_id' => $schoolId,
             'branch_id' => $branchId,
             'holder_type' => $holder['type'],
@@ -56,6 +67,30 @@ class RecordAccessCheckInUseCase
             'authorized' => $holder['type'] !== null,
             'occurred_at' => $occurredAt ?? Carbon::now(),
         ]);
+
+        if ($notify && $log->authorized && $holder['type'] === 'student') {
+            $student = Student::find($holder['id']);
+            if ($student) {
+                $this->notifyGuardians($student, $context, $action);
+            }
+        }
+
+        return $log;
+    }
+
+    private function notifyGuardians(Student $student, string $context, string $action): void
+    {
+        if ($context === 'cantine') {
+            $title = 'Présence cantine';
+            $body = "{$student->first_name} a été enregistré(e) à la cantine.";
+        } else {
+            $title = $action === 'exit' ? 'Sortie de l\'école' : 'Arrivée à l\'école';
+            $body = $action === 'exit'
+                ? "{$student->first_name} a quitté l'établissement."
+                : "{$student->first_name} est arrivé(e) à l'établissement.";
+        }
+
+        $this->notifications->notifyStudentGuardians($student, 'attendance', $title, $body);
     }
 
     private function resolveHolder(int $schoolId, string $matricule): array

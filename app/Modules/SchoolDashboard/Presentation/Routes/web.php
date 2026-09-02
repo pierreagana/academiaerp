@@ -41,6 +41,9 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::get('/school-track', [SchoolTrackController::class, 'show'])->name('school-track');
             Route::get('/school-track/edit', [SchoolTrackController::class, 'edit'])->name('school-track.edit');
             Route::put('/school-track', [SchoolTrackController::class, 'update'])->name('school-track.update');
+            Route::get('/documents-legaux', [\App\Modules\SchoolDashboard\Presentation\Controllers\LegalDocumentController::class, 'index'])->name('legal-documents.index');
+            Route::post('/documents-legaux', [\App\Modules\SchoolDashboard\Presentation\Controllers\LegalDocumentController::class, 'store'])->name('legal-documents.store')->middleware('permission:establishment.manage,create');
+            Route::delete('/documents-legaux/{id}', [\App\Modules\SchoolDashboard\Presentation\Controllers\LegalDocumentController::class, 'destroy'])->name('legal-documents.destroy')->middleware('permission:establishment.manage,delete');
         });
         Route::get('/profile', [DashboardController::class, 'profile'])->name('profile');
         Route::put('/profile', [DashboardController::class, 'updateProfile'])->name('profile.update');
@@ -324,6 +327,9 @@ Route::prefix('school')->name('school.')->group(function () {
             Route::delete('/config/{id}', [FeeController::class, 'destroyFeeLevel'])->name('config.destroy')->middleware('permission:finance.fees.manage,delete');
             Route::get('/students/{id}', [FeeController::class, 'studentShow'])->name('students.show');
             Route::get('/students/{id}/export', [FeeController::class, 'exportStudentStatement'])->name('students.export');
+            Route::get('/wallet-recharges', [FeeController::class, 'walletRechargeRequests'])->name('wallet-recharges');
+            Route::post('/wallet-recharges/{id}/approve', [FeeController::class, 'approveWalletRecharge'])->name('wallet-recharges.approve')->middleware('permission:finance.fees.manage,update');
+            Route::post('/wallet-recharges/{id}/reject', [FeeController::class, 'rejectWalletRecharge'])->name('wallet-recharges.reject')->middleware('permission:finance.fees.manage,update');
         });
 
         // Bourses

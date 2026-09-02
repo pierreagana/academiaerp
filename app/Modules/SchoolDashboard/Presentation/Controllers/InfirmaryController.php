@@ -58,7 +58,7 @@ class InfirmaryController extends Controller
         ));
     }
 
-    public function storeIntervention(Request $request, RecordInterventionUseCase $useCase)
+    public function storeIntervention(Request $request, RecordInterventionUseCase $useCase, \App\Support\Notifications\NotificationDispatcher $notifications)
     {
         $data = $request->validate([
             'student_identifier' => ['required', 'string', 'max:255'],
@@ -93,6 +93,13 @@ class InfirmaryController extends Controller
             'decision' => $data['decision'],
             'created_by' => auth()->id(),
         ]));
+
+        $notifications->notifyStudentGuardians(
+            $student,
+            'infirmary',
+            'Passage à l\'infirmerie',
+            "{$student->first_name} est passé(e) à l'infirmerie ({$data['motive']}) — " . (Intervention::DECISIONS[$data['decision']] ?? $data['decision']) . '.'
+        );
 
         return back()->with('success', 'Intervention enregistrée avec succès.');
     }

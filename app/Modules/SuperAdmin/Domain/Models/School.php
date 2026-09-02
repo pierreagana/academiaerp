@@ -471,6 +471,16 @@ class School extends Model
     }
 
     /** Coordinates helper */
+    /**
+     * Real coordinates when the school has them; otherwise a coarse
+     * city-level estimate inferred from the real `location` text (still
+     * genuine data, just imprecise). Deliberately returns null/null rather
+     * than a fabricated point when neither is available — a made-up
+     * coordinate would misrepresent the school's position instead of
+     * honestly saying it's unknown (see NearbyAmenitiesService::forSchool(),
+     * which already avoids this method's old id-based fallback for the
+     * same reason).
+     */
     public function getCoordinates(): array
     {
         if (!empty($this->latitude) && !empty($this->longitude)) {
@@ -488,7 +498,7 @@ class School extends Model
         if (str_contains($loc, 'libreville')) return ['lat' => 0.4162, 'lng' => 9.4673];
         if (str_contains($loc, 'yaoundé') || str_contains($loc, 'yaounde')) return ['lat' => 3.8480, 'lng' => 11.5021];
 
-        return ['lat' => 5.3600 + (((int)$this->id % 10) * 0.01), 'lng' => -4.0083 + (((int)$this->id % 10) * 0.01)];
+        return ['lat' => null, 'lng' => null];
     }
 
     public static function calculateDistance(float $lat1, float $lon1, float $lat2, float $lon2): float

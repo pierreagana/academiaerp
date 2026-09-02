@@ -32,6 +32,7 @@ class Payment extends Model
         'wave' => 'Wave Mobile Money',
         'orange_money' => 'Orange Money',
         'card' => 'Carte Bancaire',
+        'wallet' => 'Academia Pay',
     ];
 
     public function student()

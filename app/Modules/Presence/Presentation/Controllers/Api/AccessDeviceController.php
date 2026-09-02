@@ -12,6 +12,7 @@ use App\Modules\Presence\Domain\Models\AccessDevice;
 use App\Modules\SuperAdmin\Domain\Models\School;
 use App\Modules\Transport\Application\Services\TransportEnrollmentService;
 use App\Modules\Transport\Domain\Models\TransportBoardingScan;
+use App\Support\Notifications\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -34,6 +35,10 @@ use Illuminate\Support\Facades\Hash;
  */
 class AccessDeviceController extends Controller
 {
+    public function __construct(private NotificationDispatcher $notifications)
+    {
+    }
+
     public function login(Request $request)
     {
         $data = $request->validate([
@@ -199,11 +204,13 @@ class AccessDeviceController extends Controller
     private function handleCanteen(AccessDevice $device, RecordAccessCheckInUseCase $useCase, CanteenEnrollmentService $canteenEnrollment, Student $student, string $raw, ?string $clientScanId, ?Carbon $occurredAt, string $studentName): array
     {
         if (!$canteenEnrollment->isEnrolled($student->id)) {
-            $useCase->execute($device->school_id, $raw, 'entry', $device->access_point_id, $device->branch_id, $clientScanId, $occurredAt);
+            // Recorded for the audit trail, but not enrolled means not actually
+            // served — a "présence cantine" push here would be misleading.
+            $useCase->execute($device->school_id, $raw, 'entry', $device->access_point_id, $device->branch_id, $clientScanId, $occurredAt, notify: false);
             return ['status' => 422, 'body' => ['message' => "{$studentName} n'est pas inscrit à la cantine."]];
         }
 
-        $useCase->execute($device->school_id, $raw, 'entry', $device->access_point_id, $device->branch_id, $clientScanId, $occurredAt);
+        $useCase->execute($device->school_id, $raw, 'entry', $device->access_point_id, $device->branch_id, $clientScanId, $occurredAt, context: 'cantine');
 
         return [
             'status' => 200,
@@ -249,6 +256,23 @@ class AccessDeviceController extends Controller
             'scanned_at' => $scanTime,
             'scanned_by_device_id' => $device->id,
         ]);
+
+        $busNumber = $device->bus?->bus_number ?? '—';
+
+        if ($action === 'board') {
+            // Gated: "Élève récupéré" toggle in Paramètres de Notification.
+            $this->notifications->notifyStudentGuardiansIfPreferred(
+                $student,
+                fn (\App\Modules\Transport\Domain\Models\NotificationPreference $pref) => $pref->student_picked_up,
+                'bus', 'Montée dans le bus',
+                "{$student->first_name} est monté(e) dans le bus (matricule {$busNumber})."
+            );
+        } else {
+            $this->notifications->notifyStudentGuardians(
+                $student, 'bus', 'Descente du bus',
+                "{$student->first_name} est descendu(e) du bus (matricule {$busNumber})."
+            );
+        }
 
         return [
             'status' => 200,

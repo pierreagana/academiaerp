@@ -3,6 +3,7 @@
         'school.finance.fees.overview' => 'Vue d\'ensemble',
         'school.finance.fees.payments' => 'Suivi des Paiements',
         'school.finance.fees.config' => 'Configuration des Frais',
+        'school.finance.fees.wallet-recharges' => 'Recharges Academia Pay',
     ];
 @endphp
 <div class="flex items-center gap-1 border-b border-slate-200 mb-6 overflow-x-auto">

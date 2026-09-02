@@ -133,6 +133,15 @@
         function toggleGatewayConfig(slug, isOn) {
             const panel = document.getElementById('gateway-config-' + slug);
             if (panel) panel.classList.toggle('hidden', !isOn);
+
+            // Turning off needs no extra input, but hiding the panel also hides
+            // the "Enregistrer" button — without this, unchecking the toggle
+            // has no way to actually reach the server (see the bug report:
+            // toggling off silently does nothing).
+            if (!isOn) {
+                const form = document.getElementById('gateway-form-' + slug);
+                if (form) form.submit();
+            }
         }
     </script>
 @endsection
