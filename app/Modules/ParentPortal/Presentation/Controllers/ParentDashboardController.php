@@ -192,14 +192,26 @@ class ParentDashboardController extends Controller
         return view('ParentPortal::finance', array_merge(['parent' => $parent], $data));
     }
 
-    public function fees(int $student, ParentPortalService $service)
+    public function fees(int $student, ParentPortalService $service, CanteenEnrollmentService $canteenEnrollment, TransportEnrollmentService $transportEnrollment)
     {
         $parent = Auth::guard('parent')->user();
         $child = $service->ensureChildBelongsToParent($parent, $student);
-        $data = $service->fees($child);
         $financeData = $service->finance($parent);
 
-        return view('ParentPortal::fees', array_merge(['child' => $child, 'parent' => $parent], $data, $financeData));
+        // Tuition always applies; cantine/transport only show up here when
+        // the student is actually enrolled in that service — otherwise a
+        // school-wide fee schedule they don't owe would show as if they did.
+        $fees = ['tuition' => $service->fees($child, 'tuition')];
+
+        if ($canteenEnrollment->isEnrolled($child->id)) {
+            $fees['cantine'] = $service->fees($child, 'cantine');
+        }
+
+        if ($transportEnrollment->isEnrolled($child->id, 'morning') || $transportEnrollment->isEnrolled($child->id, 'evening')) {
+            $fees['transport'] = $service->fees($child, 'transport');
+        }
+
+        return view('ParentPortal::fees', array_merge(['child' => $child, 'parent' => $parent, 'fees' => $fees], $financeData));
     }
 
     public function canteen(int $student, ParentPortalService $service, CanteenEnrollmentService $enrollmentService)
