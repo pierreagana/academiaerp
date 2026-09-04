@@ -274,7 +274,7 @@
 
 @if($qrData)
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="{{ asset('vendor/qrcodejs/qrcode.min.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var container = document.getElementById('card-qrcode');

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Diplôme — {{ $award->type->name ?? '' }}</title>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         * {
             -webkit-print-color-adjust: exact !important;

@@ -239,15 +239,47 @@ class ParentDashboardController extends Controller
         return redirect()->route('parent.canteen', $student)->with('success', "Votre demande d'inscription à la cantine a été envoyée à l'école.");
     }
 
-    /** Normalized {status, rejectionReason} for one period — 'approved' always wins even over a stale non-approved request row, since the pivot (isEnrolled) is the real source of truth. */
+    /**
+     * Normalized {status, rejectionReason, pendingStopId} for one period —
+     * 'approved' always wins even over a stale non-approved request row, since
+     * the pivot (isEnrolled) is the real source of truth. `pendingStopId` lets
+     * the page pre-select the zone/stop the parent already asked for, so they
+     * can amend a still-pending request instead of starting over blind.
+     */
     private function transportPeriodStatus(int $studentId, string $period, TransportEnrollmentService $enrollmentService): array
     {
         if ($enrollmentService->isEnrolled($studentId, $period)) {
-            return ['status' => 'approved', 'rejectionReason' => null];
+            return ['status' => 'approved', 'rejectionReason' => null, 'pendingStopId' => null];
         }
         $latest = $enrollmentService->latestRequestFor($studentId, $period);
 
-        return ['status' => $latest->status ?? 'none', 'rejectionReason' => $latest->rejection_reason ?? null];
+        return [
+            'status' => $latest->status ?? 'none',
+            'rejectionReason' => $latest->rejection_reason ?? null,
+            'pendingStopId' => ($latest && $latest->status === TransportEnrollmentRequest::STATUS_PENDING) ? $latest->route_stop_id : null,
+        ];
+    }
+
+    /**
+     * A student is picked up and dropped off at the same home, so once a period
+     * has a real (enrolled or pending) stop, the other period is locked to that
+     * same zone — a rejected/withdrawn request doesn't count, the parent is free
+     * to pick again for both periods in that case.
+     */
+    private function lockedZoneFor(?\App\Modules\Transport\Domain\Models\RouteStop $enrolledStop, string $studentId, string $period, TransportEnrollmentService $enrollmentService): ?string
+    {
+        $zoneOf = fn ($stop) => $stop?->route ? ($stop->route->zone ?: $stop->route->name) : null;
+
+        if ($enrolledStop) {
+            return $zoneOf($enrolledStop);
+        }
+
+        $latest = $enrollmentService->latestRequestFor((int) $studentId, $period);
+        if ($latest && $latest->status === TransportEnrollmentRequest::STATUS_PENDING) {
+            return $zoneOf($latest->routeStop()->with('route')->first());
+        }
+
+        return null;
     }
 
     public function transport(int $student, ParentPortalService $service, TransportEnrollmentService $enrollmentService)
@@ -256,7 +288,59 @@ class ParentDashboardController extends Controller
         $data = $service->transport($child);
         $data['morningStatus'] = $this->transportPeriodStatus($child->id, 'morning', $enrollmentService);
         $data['eveningStatus'] = $this->transportPeriodStatus($child->id, 'evening', $enrollmentService);
-        $data['availableRoutes'] = TransportRoute::where('school_id', $child->school_id)->with('stops')->get();
+
+        $data['lockedZoneByPeriod'] = [
+            'morning' => $this->lockedZoneFor($data['morningStop'] ?? null, (string) $child->id, 'morning', $enrollmentService),
+            'evening' => $this->lockedZoneFor($data['eveningStop'] ?? null, (string) $child->id, 'evening', $enrollmentService),
+        ];
+
+        // A route's `period` column is null for "both periods", or locked to one —
+        // a morning-only route (e.g. "Zone Nord Matin A") must never show up in the
+        // evening picker and vice versa.
+        $routes = TransportRoute::where('school_id', $child->school_id)->with('stops')->get();
+        $data['availableRoutesByPeriod'] = [
+            'morning' => $routes->filter(fn ($r) => in_array($r->period, [null, 'morning'], true))->values(),
+            'evening' => $routes->filter(fn ($r) => in_array($r->period, [null, 'evening'], true))->values(),
+        ];
+
+        // Grouped by zone (a route's own `zone` field, falling back to its name for
+        // the handful of test routes with no zone set) — the parent picks a zone
+        // first, then an arrêt within it, rather than one long mixed list. Only
+        // stops with real coordinates can be placed on the map or matched against
+        // a geocoded address.
+        $otherPeriod = ['morning' => 'evening', 'evening' => 'morning'];
+        $data['zonesByPeriod'] = collect($data['availableRoutesByPeriod'])
+            ->map(function ($routesForPeriod, $period) use ($data, $otherPeriod) {
+                $byZone = [];
+                foreach ($routesForPeriod as $r) {
+                    $zoneName = $r->zone ?: $r->name;
+                    foreach ($r->stops as $s) {
+                        if ($s->latitude === null || $s->longitude === null) {
+                            continue;
+                        }
+                        $byZone[$zoneName][] = [
+                            'id' => $s->id,
+                            'name' => $s->name,
+                            'arrival_time' => $s->arrival_time,
+                            'lat' => (float) $s->latitude,
+                            'lng' => (float) $s->longitude,
+                        ];
+                    }
+                }
+
+                // Same home address morning and evening — once the other period
+                // already has a real (enrolled or pending) zone, this period is
+                // locked to it too, so only that one zone is even offered here.
+                $lockedZone = $data['lockedZoneByPeriod'][$otherPeriod[$period]] ?? null;
+                if ($lockedZone !== null) {
+                    $byZone = array_intersect_key($byZone, [$lockedZone => true]);
+                }
+
+                return collect($byZone)
+                    ->map(fn ($stops, $zone) => ['zone' => $zone, 'stops' => $stops])
+                    ->values();
+            })
+            ->all();
 
         return view('ParentPortal::transport', array_merge(['child' => $child], $data));
     }
@@ -272,11 +356,34 @@ class ParentDashboardController extends Controller
         ]);
 
         $pending = $enrollmentService->latestRequestFor($child->id, $validated['period']);
-        if ($pending && $pending->status === TransportEnrollmentRequest::STATUS_PENDING) {
-            return redirect()->route('parent.transport', $student)->with('success', 'Une demande est déjà en attente pour cette période.');
+        $isPending = $pending && $pending->status === TransportEnrollmentRequest::STATUS_PENDING;
+
+        $stop = \App\Modules\Transport\Domain\Models\RouteStop::where('school_id', $child->school_id)
+            ->with('route')
+            ->findOrFail($validated['route_stop_id']);
+
+        // Same home address morning and evening: once the other period already has
+        // a real (enrolled or pending) zone, this request must use that same zone.
+        // The zone picker on the page already only offers that zone, so hitting this
+        // means the form was tampered with or the two tabs raced each other.
+        $otherPeriod = $validated['period'] === 'morning' ? 'evening' : 'morning';
+        $otherPeriodStop = $service->transport($child)[$otherPeriod . 'Stop'] ?? null;
+        $lockedZone = $this->lockedZoneFor($otherPeriodStop, (string) $child->id, $otherPeriod, $enrollmentService);
+        $requestedZone = $stop->route ? ($stop->route->zone ?: $stop->route->name) : null;
+
+        if ($lockedZone !== null && $requestedZone !== $lockedZone) {
+            return redirect()->route('parent.transport', $student)
+                ->with('error', "Le trajet du " . ($otherPeriod === 'morning' ? 'Matin' : 'Soir') . " utilise déjà la zone « {$lockedZone} » — le trajet du " . ($validated['period'] === 'morning' ? 'Matin' : 'Soir') . " doit être dans la même zone.");
         }
 
-        $stop = \App\Modules\Transport\Domain\Models\RouteStop::where('school_id', $child->school_id)->findOrFail($validated['route_stop_id']);
+        // Still awaiting the school's decision — amend that same request in place
+        // rather than piling up a second pending row for the same period.
+        if ($isPending) {
+            $pending->update(['route_stop_id' => $stop->id]);
+
+            return redirect()->route('parent.transport', $student)->with('success', "Votre demande d'inscription au bus a été modifiée.");
+        }
+
         $enrollmentService->requestEnrollment($child, $stop, $validated['period'], $parent);
 
         return redirect()->route('parent.transport', $student)->with('success', "Votre demande d'inscription au bus a été envoyée à l'école.");

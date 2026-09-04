@@ -1,9 +1,50 @@
 @import 'tailwindcss';
 
+/* Every dashboard's Tailwind classes live in the modules' Blade views, not
+   under resources/views — without these, `vite build` only ever sees the 3
+   files under resources/views and strips out almost every utility class the
+   actual pages use. */
+@source '../../app/Modules/**/*.blade.php';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* ── Self-hosted third-party CSS ──────────────────────────────────────────
+   These were previously loaded from cdn.tailwindcss.com, unpkg.com,
+   fonts.googleapis.com and cdn.jsdelivr.net directly in every dashboard's
+   <head> — meaning the superadmin/school/parent portals rendered completely
+   unstyled (no Tailwind, no icons, no fonts) the moment a browser couldn't
+   reach those CDNs, which is the normal case on a school's local network
+   with limited/no internet access. Bundling them here makes every page work
+   off the app's own server, online or not. */
+@import 'leaflet/dist/leaflet.css';
+@import 'tom-select/dist/css/tom-select.css';
+@import '@phosphor-icons/web/bold/style.css';
+@import '@phosphor-icons/web/fill/style.css';
+
+@import '@fontsource/poppins/300.css';
+@import '@fontsource/poppins/400.css';
+@import '@fontsource/poppins/500.css';
+@import '@fontsource/poppins/600.css';
+@import '@fontsource/poppins/700.css';
+@import '@fontsource/poppins/800.css';
+
+@import '@fontsource/plus-jakarta-sans/300.css';
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/plus-jakarta-sans/800.css';
+
+/* Google's own Material Symbols CSS names the family 'Material Symbols
+   Outlined'; the self-hosted fontsource build calls it '... Variable'
+   instead, so every dashboard's existing `.material-symbols-outlined` rule
+   needs the family name below to actually pick up the local font. */
+@import '@fontsource-variable/material-symbols-outlined/full.css';
+.material-symbols-outlined {
+    font-family: 'Material Symbols Outlined Variable';
 }

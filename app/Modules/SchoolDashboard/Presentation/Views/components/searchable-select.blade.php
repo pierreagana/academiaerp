@@ -2,8 +2,6 @@
      a searchable combobox (Tom Select), styled to match the app's Tailwind look.
      Include this once near the end of <head> or <body> in any root layout.
      Opt a select out with the `data-no-search` attribute. --}}
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <style>
     .ts-wrapper { font-family: inherit; width: 100%; }
     .ts-wrapper.single .ts-control, .ts-wrapper.multi .ts-control {

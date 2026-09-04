@@ -4,12 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ __('login_page_title') }}</title>
-    <!-- Tailwind CSS via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Icônes Phosphor -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
     @php
         $themePrimary = \App\Modules\SuperAdmin\Domain\Models\GlobalSetting::where('key', 'primary_theme_color')->value('value') ?? '#031C5B';
     @endphp

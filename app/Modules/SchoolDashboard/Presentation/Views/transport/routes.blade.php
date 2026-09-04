@@ -1,7 +1,6 @@
 @extends('SchoolDashboard::layouts.app')
 
 @push('styles')
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 @endpush
 
 @section('content')
@@ -160,7 +159,6 @@
 @endsection
 
 @push('scripts')
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var map = L.map('network-map').setView([5.3599517, -4.0082563], 12);

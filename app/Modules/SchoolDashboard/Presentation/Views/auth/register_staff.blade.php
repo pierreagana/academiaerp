@@ -4,14 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inscription - Academia ERP</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Phosphor Icons -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
     <style>
         body { font-family: 'Poppins', sans-serif; }
         #map { height: 250px; width: 100%; border-radius: 0.5rem; z-index: 10; }
@@ -328,8 +322,7 @@
 
     </div>
 
-    <!-- Leaflet JS & Autocomplete script -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet JS (bundled) & Autocomplete script -->
     <script>
         let registerMap = null;
         let registerMarker = null;

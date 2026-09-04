@@ -3,8 +3,7 @@
 @section('title', $data['name'] . ' – School Track')
 
 @push('styles')
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@2.4.0/Control.FullScreen.css" />
+<link rel="stylesheet" href="{{ asset('vendor/leaflet-fullscreen/Control.FullScreen.css') }}" />
 <style>
     #mini-map {
         height: 300px;
@@ -309,8 +308,7 @@
 @endsection
 
 @push('scripts')
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="https://unpkg.com/leaflet.fullscreen@2.4.0/Control.FullScreen.js"></script>
+<script src="{{ asset('vendor/leaflet-fullscreen/Control.FullScreen.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const mapEl = document.getElementById('mini-map');

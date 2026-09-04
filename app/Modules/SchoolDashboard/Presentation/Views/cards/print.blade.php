@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Cartes — {{ \App\Modules\Cards\Domain\Models\CardTemplate::TYPES[$type] }}</title>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script src="{{ asset('vendor/qrcodejs/qrcode.min.js') }}"></script>
     <style>
         * {
             -webkit-print-color-adjust: exact !important;
